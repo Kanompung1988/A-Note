@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754">
+  <!-- Original sample worksheet written for A-Note. -->
+  <style>
+    text { font-family: "Sarabun", "Thonburi", "Leelawadee UI", "Tahoma", sans-serif; fill: #1f2937; }
+    .title { font-size: 46px; font-weight: 700; }
+    .sub { font-size: 28px; fill: #4b5563; }
+    .section { font-size: 34px; font-weight: 700; fill: #1e3a8a; }
+    .q { font-size: 34px; }
+    .math { font-size: 38px; font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif; font-style: italic; }
+    .num { font-size: 34px; font-weight: 700; }
+    .small { font-size: 22px; fill: #9ca3af; }
+    .rule { stroke: #d1d5db; stroke-width: 2; }
+  </style>
+  <rect width="1240" height="1754" fill="#ffffff"/>
+
+  <text x="90" y="130" class="title">ใบงานที่ 3 · สมการเชิงเส้นตัวแปรเดียว</text>
+  <text x="90" y="182" class="sub">คณิตศาสตร์ ชั้นมัธยมศึกษาปีที่ 1</text>
+  <text x="90" y="250" class="q">ชื่อ ...................................................... ชั้น .......... เลขที่ ..........</text>
+  <line x1="90" y1="290" x2="1150" y2="290" stroke="#1e3a8a" stroke-width="3"/>
+
+  <text x="90" y="370" class="section">ตอนที่ 1  แก้สมการต่อไปนี้</text>
+
+  <text x="90" y="450" class="num">1.</text>
+  <text x="150" y="450" class="math">3x + 7 = 22</text>
+  <line x1="150" y1="520" x2="1150" y2="520" class="rule"/>
+
+  <text x="90" y="600" class="num">2.</text>
+  <text x="150" y="600" class="math">5(x − 2) = 3x + 4</text>
+  <line x1="150" y1="670" x2="1150" y2="670" class="rule"/>
+
+  <text x="90" y="760" class="num">3.</text>
+  <text x="162" y="738" class="math">x</text>
+  <line x1="150" y1="752" x2="196" y2="752" stroke="#1f2937" stroke-width="2.5"/>
+  <text x="160" y="792" class="math">4</text>
+  <text x="212" y="766" class="math">+ 3 = 9</text>
+  <line x1="150" y1="840" x2="1150" y2="840" class="rule"/>
+
+  <text x="90" y="920" class="num">4.</text>
+  <text x="150" y="920" class="math">2x − 3 = −x + 12</text>
+  <line x1="150" y1="990" x2="1150" y2="990" class="rule"/>
+
+  <text x="90" y="1080" class="section">ตอนที่ 2  โจทย์ปัญหา</text>
+
+  <text x="90" y="1160" class="num">5.</text>
+  <text x="150" y="1160" class="q">ร้านส้มตำขายได้เงินวันเสาร์มากกว่าวันอาทิตย์ 150 บาท</text>
+  <text x="150" y="1212" class="q">สองวันรวมกันขายได้ 1,250 บาท วันอาทิตย์ขายได้กี่บาท</text>
+  <line x1="150" y1="1280" x2="1150" y2="1280" class="rule"/>
+
+  <text x="90" y="1370" class="num">6.</text>
+  <text x="150" y="1370" class="q">รูปสี่เหลี่ยมผืนผ้ามีเส้นรอบรูปยาว 46 เซนติเมตร จงหาค่า <tspan class="math">x</tspan></text>
+  <rect x="300" y="1430" width="420" height="190" fill="#eff6ff" stroke="#1e3a8a" stroke-width="3"/>
+  <text x="510" y="1414" class="q" text-anchor="middle"><tspan class="math">x + 3</tspan> ซม.</text>
+  <text x="740" y="1535" class="q"><tspan class="math">8</tspan> ซม.</text>
+  <line x1="150" y1="1680" x2="1150" y2="1680" class="rule"/>
+
+  <text x="1150" y="1730" class="small" text-anchor="end">ใบงานตัวอย่างของ A-Note</text>
+</svg>
