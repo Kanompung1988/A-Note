@@ -57,14 +57,23 @@ export function VoiceButton({ disabled, onText }: { disabled?: boolean; onText: 
     }
   }
 
-  const label =
-    state === "recording" ? `Stop recording (${seconds}s)` : state === "transcribing" ? "Listening…" : state === "error" ? "Microphone unavailable, try again" : "Ask out loud";
+  // Browsers only allow the microphone on https or localhost (not http://<LAN IP> during testing).
+  const micAllowed = window.isSecureContext && Boolean(navigator.mediaDevices?.getUserMedia);
+  const label = !micAllowed
+    ? "Voice needs a secure (https) connection"
+    : state === "recording"
+      ? `Stop recording (${seconds}s)`
+      : state === "transcribing"
+        ? "Listening…"
+        : state === "error"
+          ? "Microphone unavailable, try again"
+          : "Ask out loud";
 
   return (
     <motion.button
       type="button"
       onClick={toggle}
-      disabled={disabled || state === "transcribing"}
+      disabled={disabled || !micAllowed || state === "transcribing"}
       aria-label={label}
       title={label}
       whileTap={{ scale: 0.92 }}

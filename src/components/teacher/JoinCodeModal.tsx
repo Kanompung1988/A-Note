@@ -12,7 +12,7 @@ export function JoinCodeModal({ open, code, className, onClose }: { open: boolea
     <Modal open={open} onClose={onClose} wide>
       <div className="flex flex-col items-center gap-4 py-6 text-center">
         <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}>
-          <Image src="/brand/mascot.webp" alt="" width={220} height={157} />
+          <Image src="/brand/mascot.webp" alt="" width={220} height={157} className="h-[157px] w-[220px]" />
         </motion.div>
         <p className="text-lg text-slate-500">Join {className} at</p>
         <p className="text-2xl font-semibold text-slate-800">{origin.replace(/^https?:\/\//, "")}/join</p>

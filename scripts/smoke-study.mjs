@@ -92,6 +92,13 @@ try {
   await page.locator("canvas").last().waitFor();
   const saved = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("a-note:ink:")).length);
   check(saved === 1, "ink survives a reload");
+
+  // Next keeps visited pages alive in the background; coming back must not lose the canvases.
+  await page.getByRole("link", { name: "A-Note" }).first().click();
+  await page.waitForURL(`${baseUrl}/`);
+  await page.goBack();
+  await page.waitForTimeout(1500);
+  check((await page.locator("canvas").count()) === 2, "leaving and coming back keeps the worksheet working");
 } finally {
   check(problems.length === 0, `no page errors${problems.length ? `:\n  ${problems.join("\n  ")}` : ""}`);
   await browser.close();

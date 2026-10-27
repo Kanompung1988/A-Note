@@ -189,7 +189,7 @@ export default function TeacherDashboard({ code }: { code: string }) {
         ) : (
           <section className="grid place-items-center rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200">
             <div className="max-w-sm space-y-4">
-              <Image src="/brand/peek.webp" alt="" width={180} height={178} className="mx-auto" />
+              <Image src="/brand/peek.webp" alt="" width={180} height={178} className="mx-auto h-[178px] w-[180px]" />
               <p className="text-lg font-semibold text-slate-900">Assign your first worksheet</p>
               <p className="text-slate-500">Then put the class code on the board. Circles show up here the moment learners ask.</p>
               <button type="button" onClick={() => setAssignOpen(true)} className="rounded-xl bg-orange-500 px-5 py-2.5 font-semibold text-white">

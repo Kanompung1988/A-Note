@@ -45,7 +45,7 @@ export default function TeacherHome() {
             circled, with a re-teach plan from Muse Spark.
           </p>
           <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }} className="hidden md:block">
-            <Image src="/brand/peek.webp" alt="" width={220} height={218} />
+            <Image src="/brand/peek.webp" alt="" width={220} height={218} className="h-[218px] w-[220px]" />
           </motion.div>
         </motion.div>
 

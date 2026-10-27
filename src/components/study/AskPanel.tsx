@@ -139,7 +139,7 @@ export function AskPanel({ session, onNextHint, onReply, onRetry, onClose }: Pro
             transition={{ type: "spring", stiffness: 260, damping: 18 }}
             className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-200"
           >
-            <Image src="/brand/peek.webp" alt="" width={56} height={55} className="shrink-0" />
+            <Image src="/brand/peek.webp" alt="" width={56} height={55} className="h-[55px] w-[56px] shrink-0" />
             <p className="text-[15px] font-medium text-emerald-800">You solved it yourself. Circle the next thing you&apos;re unsure about.</p>
           </motion.div>
         )}

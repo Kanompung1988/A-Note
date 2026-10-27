@@ -25,7 +25,7 @@ export function HeroDemo() {
         animate={{ y: [0, -14, 0], rotate: [-4, 2, -4] }}
         transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
       >
-        <Image src="/brand/mascot.webp" alt="" width={170} height={121} preload />
+        <Image src="/brand/mascot.webp" alt="" width={170} height={121} preload className="h-[121px] w-[170px]" />
       </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 30, rotate: -2 }}

@@ -43,7 +43,7 @@ export default function JoinClass() {
       </TopBar>
       <main className="mx-auto flex max-w-md flex-col items-center px-4 py-10">
         <motion.div animate={{ y: [0, -10, 0], rotate: [0, -2, 0] }} transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}>
-          <Image src="/brand/mascot.webp" alt="" width={240} height={171} preload />
+          <Image src="/brand/mascot.webp" alt="" width={240} height={171} preload className="h-[171px] w-[240px]" />
         </motion.div>
         <motion.form
           onSubmit={submit}

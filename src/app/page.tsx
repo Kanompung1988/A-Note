@@ -32,7 +32,7 @@ const STEPS = [
     body: "Muse Spark writes one small hint at a time right on your page, checks your answer, and only celebrates when you solved it yourself.",
     art: (
       <div className="flex h-14 items-center gap-2 rounded-2xl bg-amber-50 px-3 ring-1 ring-amber-200">
-        <Image src="/brand/icon.png" alt="" width={28} height={28} className="rounded-lg" />
+        <Image src="/brand/icon.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
         <span className="text-xs font-medium text-slate-700">Undo the +7 first?</span>
       </div>
     ),
@@ -175,7 +175,7 @@ export default function Home() {
           <Bubbles />
           <div className="relative mx-auto flex max-w-3xl flex-col items-center px-4 py-24 text-center">
             <Float>
-              <Image src="/brand/peek.webp" alt="" width={220} height={218} />
+              <Image src="/brand/peek.webp" alt="" width={220} height={218} className="h-[218px] w-[220px]" />
             </Float>
             <h2 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900">Got a worksheet? Circle something.</h2>
             <div className="mt-8 flex flex-wrap justify-center gap-3">

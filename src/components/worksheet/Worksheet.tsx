@@ -51,23 +51,30 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
   // the page (and its canvases) mounts only once the available width is known
   const mounted = width > 0;
 
-  // Fit the page to the available width.
+  // Fit the page to the available width. A hidden page (Next keeps visited routes alive in the
+  // background) measures 0 wide; keep the last size instead of unmounting the canvases.
   useEffect(() => {
-    const el = scrollRef.current!;
-    const observer = new ResizeObserver(() => setWidth(Math.min(el.clientWidth - 32, MAX_PAGE_WIDTH)));
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === 0) return;
+      setWidth(Math.max(0, Math.min(el.clientWidth - 32, MAX_PAGE_WIDTH)));
+    });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
   // Committed ink.
   useEffect(() => {
-    if (!width) return;
-    const ctx = fitCanvas(baseRef.current!, width, height, sheet.width);
+    const canvas = baseRef.current;
+    if (!width || !canvas) return;
+    const ctx = fitCanvas(canvas, width, height, sheet.width);
     for (const stroke of strokes) drawStroke(ctx, stroke);
   }, [strokes, width, height, sheet.width]);
 
   useEffect(() => {
-    if (width) fitCanvas(liveRef.current!, width, height, sheet.width);
+    const canvas = liveRef.current;
+    if (width && canvas) fitCanvas(canvas, width, height, sheet.width);
   }, [width, height, sheet.width]);
 
   useEffect(() => {
@@ -110,9 +117,15 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
 
   function drawLive() {
     frameRef.current = 0;
-    const ctx = liveRef.current!.getContext("2d")!;
+    const ctx = liveRef.current?.getContext("2d");
+    if (!ctx) return;
     clearCanvas(ctx);
     if (activeRef.current) drawStroke(ctx, activeRef.current, false);
+  }
+
+  function clearLive() {
+    const ctx = liveRef.current?.getContext("2d");
+    if (ctx) clearCanvas(ctx);
   }
 
   function eraseAt(point: InkPoint, current: Stroke[]): Stroke[] {
@@ -177,7 +190,7 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
     pointerRef.current = null;
     const active = activeRef.current;
     activeRef.current = null;
-    clearCanvas(liveRef.current!.getContext("2d")!);
+    clearLive();
     if (!active) return;
     commit([...strokes, active]);
     if (active.tool === "pen") {
@@ -190,7 +203,7 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
     if (e.pointerId !== pointerRef.current) return;
     pointerRef.current = null;
     activeRef.current = null;
-    clearCanvas(liveRef.current!.getContext("2d")!);
+    clearLive();
   }
 
   function undo() {
