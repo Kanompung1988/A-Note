@@ -33,7 +33,8 @@ async function newPage(viewport) {
   const context = await browser.newContext({ viewport, deviceScaleFactor: 2 });
   const page = await context.newPage();
   page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
-  page.on("console", (m) => m.type() === "error" && problems.push(`console: ${m.text()}`));
+  page.on("console", (m) => m.type() === "error" && problems.push(`console: ${m.text()} @ ${m.location().url}`));
+  page.on("response", (r) => r.status() >= 400 && problems.push(`HTTP ${r.status()} ${r.request().method()} ${r.url()}`));
   return page;
 }
 

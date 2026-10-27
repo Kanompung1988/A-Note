@@ -25,7 +25,8 @@ const browser = await chromium.launch({ executablePath, headless: true });
 const page = await browser.newPage({ viewport: { width: 1180, height: 820 }, deviceScaleFactor: 2 });
 const problems = [];
 page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
-page.on("console", (m) => m.type() === "error" && problems.push(`console: ${m.text()}`));
+page.on("console", (m) => m.type() === "error" && problems.push(`console: ${m.text()} @ ${m.location().url}`));
+page.on("response", (r) => r.status() >= 400 && problems.push(`HTTP ${r.status()} ${r.request().method()} ${r.url()}`));
 
 let failed = false;
 function check(ok, label) {
