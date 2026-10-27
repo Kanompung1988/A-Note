@@ -81,7 +81,7 @@ try {
       await page.screenshot({ path: path.join(shots, "3-hint.png") });
       await page.getByRole("button", { name: "Next hint" }).click();
       check(await visible(page.getByText(/^Hint 2 of \d/), 3_000), "Next hint moves the note to hint 2");
-      await page.getByPlaceholder("Type your answer or a question…").fill("I subtract 7 from both sides so 3x = 15, then x = 5");
+      await page.getByPlaceholder("Type or say your answer…").fill("I subtract 7 from both sides so 3x = 15, then x = 5");
       await page.getByRole("button", { name: "Send" }).click();
       check(await visible(page.getByText("You got it"), 60_000), "a correct answer is recognised");
       await page.screenshot({ path: path.join(shots, "4-solved.png") });
