@@ -11,9 +11,9 @@ export type Sheet = {
 
 export const SAMPLE_SHEETS: Sheet[] = [
   {
-    id: "linear-equations-m1",
-    title: "ใบงานที่ 3 · สมการเชิงเส้นตัวแปรเดียว",
-    src: "/sheets/linear-equations-m1.svg",
+    id: "linear-equations",
+    title: "Worksheet 3 · Linear Equations",
+    src: "/sheets/linear-equations.svg",
     width: 1240,
     height: 1754,
   },

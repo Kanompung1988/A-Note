@@ -23,8 +23,15 @@ npm run dev          # http://localhost:3000
 npm run typecheck    # tsc --noEmit
 npm run lint
 npm run check:meta   # smoke-test the Meta key (prints model ids and one reply, never the key)
+npm test             # vitest unit tests
+npm run smoke -- <baseUrl> <shotsDir> [--ai]   # Chrome drives /study; --ai also calls the real models
 ```
 `GET /api/health` reports whether the server reaches the Meta API and sees every required model.
 
 ## Language
-UI is Thai first, English second. Code, comments and the README are in English (judges read them).
+Everything in the app is English: UI, sample worksheets, tutor default. The tutor answers in the learner's
+own language when they write in another one. Code, comments and the README are in English.
+
+## Product shape
+Web-first for both learners and teachers: a whiteboard where the tutor writes on the same page
+(SAM 3.1 shading of the circled region, hint notes pinned beside it), not just a side chat.

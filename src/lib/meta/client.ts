@@ -48,6 +48,7 @@ export type ResponseRequest = {
   max_output_tokens?: number;
   previous_response_id?: string;
   metadata?: Record<string, string>;
+  text?: { format: { type: "json_schema"; name: string; schema: Record<string, unknown>; strict?: boolean } };
 };
 
 export type ResponseUsage = {

@@ -10,17 +10,27 @@ import { Toolbar, type ToolChoice } from "./Toolbar";
 
 const MAX_PAGE_WIDTH = 980;
 const HISTORY_LIMIT = 50;
+const NOTE_WIDTH = 280;
 
 type LoopPrompt = { strokeId: string; box: Box };
 
+/** What the tutor draws on the page: SAM's mask of the circled part and a hint note beside it. */
+export type BoardOverlay = {
+  loop: Box;
+  /** in page space; the path is in mask raster space and stretches over `box` */
+  region: { box: Box; path: string; maskWidth: number; maskHeight: number } | null;
+  note: { label: string; text: string; tone: "thinking" | "hint" | "done" } | null;
+};
+
 type Props = {
   sheet: Sheet;
-  /** called when the learner taps "ask" on a loop; gets the strokes with that loop marked as asked */
+  overlay?: BoardOverlay | null;
+  /** called when the learner taps "Ask here" on a loop; gets the strokes with that loop marked as asked */
   onAsk: (strokes: Stroke[], loop: Box) => void;
 };
 
 /** A worksheet you can write on. Pen and mouse draw, fingers scroll, and a loop offers to ask. */
-export default function Worksheet({ sheet, onAsk }: Props) {
+export default function Worksheet({ sheet, overlay, onAsk }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const baseRef = useRef<HTMLCanvasElement>(null);
   const liveRef = useRef<HTMLCanvasElement>(null);
@@ -140,10 +150,11 @@ export default function Worksheet({ sheet, onAsk }: Props) {
 
   function onPointerMove(e: ReactPointerEvent<HTMLCanvasElement>) {
     if (e.pointerId !== pointerRef.current) return;
-    const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent];
+    const coalesced = e.nativeEvent.getCoalescedEvents?.() ?? [];
+    const events = coalesced.length ? coalesced : [e.nativeEvent];
     if (choice.tool === "eraser") {
       let next = strokes;
-      for (const ev of events.length ? events : [e.nativeEvent]) next = eraseAt(toPage(ev), next);
+      for (const ev of events) next = eraseAt(toPage(ev), next);
       if (next.length !== strokes.length) {
         // one undo step per eraser gesture
         if (erasedRef.current) setStrokes(next);
@@ -156,7 +167,7 @@ export default function Worksheet({ sheet, onAsk }: Props) {
     }
     const active = activeRef.current;
     if (!active) return;
-    for (const ev of events.length ? events : [e.nativeEvent]) active.points.push(toPage(ev));
+    for (const ev of events) active.points.push(toPage(ev));
     frameRef.current ||= requestAnimationFrame(drawLive);
   }
 
@@ -190,7 +201,7 @@ export default function Worksheet({ sheet, onAsk }: Props) {
   }
 
   function clearPage() {
-    if (!strokes.length || !window.confirm("ลบทุกอย่างที่เขียนในหน้านี้?")) return;
+    if (!strokes.length || !window.confirm("Clear everything you wrote on this page?")) return;
     commit([]);
     setPrompt(null);
   }
@@ -224,6 +235,7 @@ export default function Worksheet({ sheet, onAsk }: Props) {
               draggable={false}
               className="pointer-events-none absolute inset-0 select-none bg-white"
             />
+            {overlay?.region && <RegionHighlight region={overlay.region} sheet={sheet} width={width} height={height} />}
             <canvas ref={baseRef} className="pointer-events-none absolute inset-0" />
             <canvas
               ref={liveRef}
@@ -234,9 +246,10 @@ export default function Worksheet({ sheet, onAsk }: Props) {
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerCancel}
             />
+            {overlay?.note && <BoardNote overlay={overlay} note={overlay.note} scale={scale} pageWidth={width} />}
             {prompt && (
               <AskChip
-                left={Math.min((prompt.box.x + prompt.box.w) * scale, width - 170)}
+                left={Math.min((prompt.box.x + prompt.box.w) * scale, width - 150)}
                 top={Math.max(prompt.box.y * scale - 52, 4)}
                 onAsk={() => ask(prompt)}
                 onDismiss={() => setPrompt(null)}
@@ -249,18 +262,70 @@ export default function Worksheet({ sheet, onAsk }: Props) {
   );
 }
 
+function RegionHighlight({ region, sheet, width, height }: { region: NonNullable<BoardOverlay["region"]>; sheet: Sheet; width: number; height: number }) {
+  const { box, path, maskWidth, maskHeight } = region;
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 animate-[region-in_600ms_ease-out]"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${sheet.width} ${sheet.height}`}
+      aria-hidden
+    >
+      <path
+        d={path}
+        transform={`translate(${box.x} ${box.y}) scale(${box.w / maskWidth} ${box.h / maskHeight})`}
+        fill="#fb923c"
+        fillOpacity={0.28}
+      />
+    </svg>
+  );
+}
+
+function BoardNote({ overlay, note, scale, pageWidth }: { overlay: BoardOverlay; note: NonNullable<BoardOverlay["note"]>; scale: number; pageWidth: number }) {
+  const anchor = overlay.region?.box ?? overlay.loop;
+  const right = (anchor.x + anchor.w) * scale + 16;
+  const fitsRight = right + NOTE_WIDTH <= pageWidth - 8;
+  const left = fitsRight ? right : Math.max(8, Math.min(anchor.x * scale, pageWidth - NOTE_WIDTH - 8));
+  const top = fitsRight ? Math.max(8, anchor.y * scale - 8) : (anchor.y + anchor.h) * scale + 12;
+  const tones = {
+    thinking: "bg-white ring-sky-200",
+    hint: "bg-amber-50 ring-amber-300",
+    done: "bg-emerald-50 ring-emerald-300",
+  };
+  return (
+    <div
+      role="status"
+      className={`pointer-events-none absolute z-10 flex gap-2 rounded-2xl p-3 shadow-lg ring-1 animate-[note-in_300ms_ease-out] ${tones[note.tone]}`}
+      style={{ left, top, width: NOTE_WIDTH }}
+    >
+      <Image
+        src="/brand/icon.png"
+        alt=""
+        width={36}
+        height={36}
+        className={`h-9 w-9 shrink-0 rounded-xl ${note.tone === "thinking" ? "animate-bounce" : ""}`}
+      />
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{note.label}</p>
+        <p className="text-[15px] leading-snug text-slate-800">{note.text}</p>
+      </div>
+    </div>
+  );
+}
+
 function AskChip({ left, top, onAsk, onDismiss }: { left: number; top: number; onAsk: () => void; onDismiss: () => void }) {
   return (
-    <div className="absolute z-10 flex items-center gap-1 rounded-full bg-white p-1 pr-2 shadow-lg ring-1 ring-orange-200" style={{ left, top }}>
+    <div className="absolute z-20 flex items-center gap-1 rounded-full bg-white p-1 pr-2 shadow-lg ring-1 ring-orange-200" style={{ left, top }}>
       <button
         type="button"
         onClick={onAsk}
         className="flex items-center gap-2 rounded-full bg-orange-500 py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white active:bg-orange-600"
       >
         <Image src="/brand/icon.png" alt="" width={28} height={28} className="rounded-full" />
-        ถามตรงนี้
+        Ask here
       </button>
-      <button type="button" onClick={onDismiss} aria-label="ไม่ถาม" className="px-1.5 text-lg leading-none text-slate-400">
+      <button type="button" onClick={onDismiss} aria-label="Not now" className="px-1.5 text-lg leading-none text-slate-400">
         ×
       </button>
     </div>

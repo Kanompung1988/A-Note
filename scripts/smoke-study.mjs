@@ -1,13 +1,15 @@
-// Browser smoke test for /study: draws a loop with the mouse, taps "ถามตรงนี้" and checks the close-up.
-// Needs a running server. Usage: node scripts/smoke-study.mjs [baseUrl] [screenshotDir]
+// Browser smoke test for /study: draws a loop with the mouse, taps "Ask here" and checks the tutor flow.
+// Pass --ai to also wait for the real Meta model calls (SAM highlight, first hint, a reply).
+// Needs a running server. Usage: node scripts/smoke-study.mjs [baseUrl] [screenshotDir] [--ai]
 // Uses the system Chrome (or CHROME_PATH), so no browser download is needed.
 
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright-core";
 
-const baseUrl = process.argv[2] ?? "http://localhost:3000";
-const shots = process.argv[3] ?? "smoke-shots";
+const args = process.argv.slice(2);
+const withAi = args.includes("--ai");
+const [baseUrl = "http://localhost:3000", shots = "smoke-shots"] = args.filter((a) => !a.startsWith("--"));
 mkdirSync(shots, { recursive: true });
 
 const candidates = [
@@ -30,6 +32,7 @@ function check(ok, label) {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
   if (!ok) failed = true;
 }
+const visible = (locator, timeout) => locator.first().waitFor({ timeout }).then(() => true, () => false);
 
 try {
   await page.goto(`${baseUrl}/study`, { waitUntil: "networkidle" });
@@ -46,13 +49,14 @@ try {
   const cy = box.y + 432 * s;
   const rx = 165 * s;
   const ry = 48 * s;
+  const askButton = page.getByRole("button", { name: "Ask here" });
 
   // A short underline first: it must not offer to ask.
   await page.mouse.move(box.x + 150 * s, box.y + 470 * s);
   await page.mouse.down();
   await page.mouse.move(box.x + 420 * s, box.y + 472 * s, { steps: 12 });
   await page.mouse.up();
-  check((await page.getByRole("button", { name: "ถามตรงนี้" }).count()) === 0, "an underline does not pop the ask chip");
+  check((await askButton.count()) === 0, "an underline does not pop the ask chip");
 
   // Now a loop around problem 1.
   await page.mouse.move(cx + rx, cy);
@@ -62,17 +66,26 @@ try {
     await page.mouse.move(cx + rx * Math.cos(a), cy + ry * Math.sin(a));
   }
   await page.mouse.up();
-  const chip = page.getByRole("button", { name: "ถามตรงนี้" });
-  await chip.waitFor({ timeout: 3_000 }).catch(() => {});
-  check(await chip.isVisible(), "a loop pops the ask chip");
+  check(await visible(askButton, 3_000), "a loop pops the ask chip");
   await page.screenshot({ path: path.join(shots, "1-loop.png") });
 
-  if (await chip.isVisible()) {
-    await chip.click();
-    const crop = page.getByAltText("ส่วนที่วงไว้");
-    await crop.waitFor({ timeout: 5_000 }).catch(() => {});
-    check(await crop.isVisible(), "tapping it opens the panel with the close-up");
-    await page.screenshot({ path: path.join(shots, "2-panel.png") });
+  if (await askButton.isVisible()) {
+    await askButton.click();
+    check(await visible(page.getByAltText("What you circled"), 5_000), "tapping it opens the panel with the close-up");
+    check(await visible(page.getByText("Looking at what you circled…"), 3_000), "the tutor's note appears on the page while it thinks");
+    await page.screenshot({ path: path.join(shots, "2-thinking.png") });
+
+    if (withAi) {
+      check(await visible(page.locator('svg path[fill="#fb923c"]'), 30_000), "SAM 3.1 highlight is drawn on the page");
+      check(await visible(page.getByText(/^Hint 1 of \d/), 60_000), "Muse Spark's first hint is written on the page");
+      await page.screenshot({ path: path.join(shots, "3-hint.png") });
+      await page.getByRole("button", { name: "Next hint" }).click();
+      check(await visible(page.getByText(/^Hint 2 of \d/), 3_000), "Next hint moves the note to hint 2");
+      await page.getByPlaceholder("Type your answer or a question…").fill("I subtract 7 from both sides so 3x = 15, then x = 5");
+      await page.getByRole("button", { name: "Send" }).click();
+      check(await visible(page.getByText("You got it"), 60_000), "a correct answer is recognised");
+      await page.screenshot({ path: path.join(shots, "4-solved.png") });
+    }
   }
 
   await page.reload({ waitUntil: "networkidle" });
