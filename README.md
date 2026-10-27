@@ -1,3 +1,5 @@
+<p align="center"><img src="public/brand/wordmark.png" alt="A-Note" width="420"></p>
+
 # A-Note
 
 **Circle what you don't get. A-Note sees exactly what you circled and walks you through it, step by step, in Thai.**
@@ -40,4 +42,6 @@ npm run dev                  # http://localhost:3000
 
 ## Other tools
 
-Brand assets (logo, illustrations) are drawn offline with OpenAI image generation. No OpenAI model runs in the app.
+Brand assets (logo, mascot, app icon) are drawn offline with OpenAI image generation
+([`scripts/brand/generate-logo.mjs`](scripts/brand/generate-logo.mjs)). No OpenAI model runs in the app.
+The mascot is an original clownfish whose tail is a pencil tip.

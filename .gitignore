@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# brand drafts (only chosen assets go to public/brand)
+/brand/drafts/
+
+# local sample worksheets
+/samples/
