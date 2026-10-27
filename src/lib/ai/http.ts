@@ -8,6 +8,27 @@ export const imageDataUrl = z
   .max(8_000_000)
   .regex(/^data:image\/(jpeg|png|webp);base64,/);
 
+export const box = z.object({ x: z.number(), y: z.number(), w: z.number().positive(), h: z.number().positive() });
+
+export const pageRegion = z.object({
+  box,
+  path: z.string().max(200_000),
+  maskWidth: z.number().int().positive(),
+  maskHeight: z.number().int().positive(),
+});
+
+export function notFound(what = "not_found"): Response {
+  return Response.json({ error: what }, { status: 404 });
+}
+
+export function forbidden(): Response {
+  return Response.json({ error: "forbidden" }, { status: 403 });
+}
+
+export function teacherKey(request: Request): string | null {
+  return request.headers.get("x-teacher-key");
+}
+
 export function errorResponse(error: unknown): Response {
   if (error instanceof z.ZodError || error instanceof SyntaxError) {
     return Response.json({ error: "bad_request" }, { status: 400 });

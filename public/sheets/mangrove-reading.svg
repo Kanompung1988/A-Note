@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754">
+  <!-- Original sample worksheet written for A-Note. -->
+  <style>
+    text { font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif; fill: #1f2937; }
+    .title { font-size: 46px; font-weight: 700; }
+    .sub { font-size: 28px; fill: #4b5563; }
+    .section { font-size: 34px; font-weight: 700; fill: #7c3aed; }
+    .p { font-size: 31px; font-family: Georgia, "Times New Roman", serif; }
+    .q { font-size: 31px; }
+    .num { font-size: 32px; font-weight: 700; }
+    .small { font-size: 22px; fill: #9ca3af; }
+    .rule { stroke: #d1d5db; stroke-width: 2; }
+  </style>
+  <rect width="1240" height="1754" fill="#ffffff"/>
+
+  <text x="90" y="130" class="title">Reading 2 · The Mangrove Wall</text>
+  <text x="90" y="182" class="sub">Grade 7 English</text>
+  <text x="90" y="250" class="q">Name .................................................. Class .......... No. ..........</text>
+  <line x1="90" y1="290" x2="1150" y2="290" stroke="#7c3aed" stroke-width="3"/>
+
+  <rect x="90" y="330" width="1060" height="610" rx="18" fill="#faf5ff" stroke="#ddd6fe" stroke-width="2"/>
+  <text class="p">
+    <tspan x="130" y="400">Along the coast of southern Thailand, mangrove forests grow</tspan>
+    <tspan x="130" y="450">where the river meets the sea. Their tangled roots rise above</tspan>
+    <tspan x="130" y="500">the mud like stilts, so the trees can breathe even when the</tspan>
+    <tspan x="130" y="550">tide is high. The roots also shelter young fish and crabs,</tspan>
+    <tspan x="130" y="600">and they slow down waves during storms. For many fishing</tspan>
+    <tspan x="130" y="650">villages, the mangroves are a natural sea wall.</tspan>
+    <tspan x="130" y="720">Over the last fifty years, large areas were cleared to make</tspan>
+    <tspan x="130" y="770">room for shrimp farms. Without the trees, the shore eroded</tspan>
+    <tspan x="130" y="820">quickly. Today, villagers are replanting seedlings by hand,</tspan>
+    <tspan x="130" y="870">and some forests are slowly recovering.</tspan>
+  </text>
+
+  <text x="90" y="1010" class="section">Questions</text>
+
+  <text x="90" y="1090" class="num">1.</text>
+  <text x="140" y="1090" class="q">What does the word "tangled" tell you about the roots?</text>
+  <line x1="140" y1="1160" x2="1150" y2="1160" class="rule"/>
+
+  <text x="90" y="1240" class="num">2.</text>
+  <text x="140" y="1240" class="q">Why can mangrove trees breathe when the tide is high?</text>
+  <line x1="140" y1="1310" x2="1150" y2="1310" class="rule"/>
+
+  <text x="90" y="1390" class="num">3.</text>
+  <text x="140" y="1390" class="q">The writer calls mangroves "a natural sea wall". What does this mean?</text>
+  <line x1="140" y1="1460" x2="1150" y2="1460" class="rule"/>
+
+  <text x="90" y="1540" class="num">4.</text>
+  <text x="140" y="1540" class="q">Find one cause and its effect in the second paragraph.</text>
+  <line x1="140" y1="1610" x2="1150" y2="1610" class="rule"/>
+
+  <text x="1150" y="1730" class="small" text-anchor="end">A-Note sample worksheet</text>
+</svg>

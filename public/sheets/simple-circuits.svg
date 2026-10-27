@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754">
+  <!-- Original sample worksheet written for A-Note. -->
+  <style>
+    text { font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif; fill: #1f2937; }
+    .title { font-size: 46px; font-weight: 700; }
+    .sub { font-size: 28px; fill: #4b5563; }
+    .section { font-size: 34px; font-weight: 700; fill: #0f766e; }
+    .q { font-size: 31px; }
+    .num { font-size: 32px; font-weight: 700; }
+    .label { font-size: 30px; font-weight: 700; fill: #0f766e; }
+    .small { font-size: 22px; fill: #9ca3af; }
+    .wire { fill: none; stroke: #1f2937; stroke-width: 5; stroke-linejoin: round; }
+    .rule { stroke: #d1d5db; stroke-width: 2; }
+  </style>
+  <defs>
+    <g id="bulb">
+      <circle r="34" fill="#fef9c3" stroke="#1f2937" stroke-width="5"/>
+      <path d="M-24 -24 L24 24 M24 -24 L-24 24" stroke="#1f2937" stroke-width="4"/>
+    </g>
+    <g id="battery">
+      <rect x="-30" y="-46" width="60" height="92" fill="#ffffff"/>
+      <line x1="-10" y1="-44" x2="-10" y2="44" stroke="#1f2937" stroke-width="5"/>
+      <line x1="12" y1="-24" x2="12" y2="24" stroke="#1f2937" stroke-width="10"/>
+    </g>
+  </defs>
+  <rect width="1240" height="1754" fill="#ffffff"/>
+
+  <text x="90" y="130" class="title">Worksheet 5 · Simple Circuits</text>
+  <text x="90" y="182" class="sub">Grade 7 Science</text>
+  <text x="90" y="250" class="q">Name .................................................. Class .......... No. ..........</text>
+  <line x1="90" y1="290" x2="1150" y2="290" stroke="#0f766e" stroke-width="3"/>
+
+  <text x="90" y="370" class="section">Circuit 1</text>
+  <!-- series circuit: battery left, bulbs A and B on top, open switch at the bottom -->
+  <path class="wire" d="M200 560 L200 430 L330 430 M398 430 L560 430 M628 430 L760 430 L760 690 L560 690"/>
+  <path class="wire" d="M470 690 L200 690 L200 640"/>
+  <use href="#battery" x="200" y="600" transform="rotate(90 200 600)"/>
+  <text x="140" y="560" class="label">+</text>
+  <use href="#bulb" x="364" y="430"/>
+  <use href="#bulb" x="594" y="430"/>
+  <text x="350" y="388" class="label">A</text>
+  <text x="580" y="388" class="label">B</text>
+  <circle cx="470" cy="690" r="8" fill="#1f2937"/>
+  <circle cx="560" cy="690" r="8" fill="#1f2937"/>
+  <line x1="470" y1="690" x2="548" y2="640" stroke="#1f2937" stroke-width="5"/>
+  <text x="470" y="745" class="q">switch</text>
+
+  <text x="860" y="370" class="section">Circuit 2</text>
+  <!-- parallel circuit: battery left, bulbs C and D on separate branches -->
+  <path class="wire" d="M880 470 L880 430 L1120 430 L1120 690 L880 690 L880 590"/>
+  <path class="wire" d="M1000 430 L1000 486 M1000 554 L1000 690"/>
+  <use href="#battery" x="880" y="530" transform="rotate(90 880 530)"/>
+  <text x="826" y="490" class="label">+</text>
+  <use href="#bulb" x="1000" y="520"/>
+  <use href="#bulb" x="1120" y="560"/>
+  <text x="1046" y="530" class="label">C</text>
+  <text x="1164" y="570" class="label">D</text>
+
+  <line x1="90" y1="800" x2="1150" y2="800" class="rule"/>
+
+  <text x="90" y="880" class="num">1.</text>
+  <text x="140" y="880" class="q">Is Circuit 1 a series circuit or a parallel circuit? How can you tell?</text>
+  <line x1="140" y1="960" x2="1150" y2="960" class="rule"/>
+
+  <text x="90" y="1040" class="num">2.</text>
+  <text x="140" y="1040" class="q">The switch in Circuit 1 is open. Do bulbs A and B light up? Why?</text>
+  <line x1="140" y1="1120" x2="1150" y2="1120" class="rule"/>
+
+  <text x="90" y="1200" class="num">3.</text>
+  <text x="140" y="1200" class="q">In Circuit 1 the switch is closed and bulb A breaks. What happens to B?</text>
+  <line x1="140" y1="1280" x2="1150" y2="1280" class="rule"/>
+
+  <text x="90" y="1360" class="num">4.</text>
+  <text x="140" y="1360" class="q">In Circuit 2, bulb C breaks. Does bulb D stay on? Explain.</text>
+  <line x1="140" y1="1440" x2="1150" y2="1440" class="rule"/>
+
+  <text x="90" y="1520" class="num">5.</text>
+  <text x="140" y="1520" class="q">Which kind of circuit is better for the lights in a house? Why?</text>
+  <line x1="140" y1="1600" x2="1150" y2="1600" class="rule"/>
+
+  <text x="1150" y="1730" class="small" text-anchor="end">A-Note sample worksheet</text>
+</svg>

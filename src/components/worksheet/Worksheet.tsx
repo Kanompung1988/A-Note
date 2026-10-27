@@ -1,10 +1,12 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { detectLoop, hitsStroke, type Box, type InkPoint, type Stroke, type Tool } from "@/lib/ink/geometry";
 import { clearCanvas, drawStroke, fitCanvas } from "@/lib/ink/render";
 import { loadStrokes, newId, saveStrokes } from "@/lib/ink/storage";
+import { regionTransform, type PageRegion } from "@/lib/regions";
 import type { Sheet } from "@/lib/sheets";
 import { Toolbar, type ToolChoice } from "./Toolbar";
 
@@ -17,8 +19,7 @@ type LoopPrompt = { strokeId: string; box: Box };
 /** What the tutor draws on the page: SAM's mask of the circled part and a hint note beside it. */
 export type BoardOverlay = {
   loop: Box;
-  /** in page space; the path is in mask raster space and stretches over `box` */
-  region: { box: Box; path: string; maskWidth: number; maskHeight: number } | null;
+  region: PageRegion | null;
   note: { label: string; text: string; tone: "thinking" | "hint" | "done" } | null;
 };
 
@@ -246,15 +247,20 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerCancel}
             />
-            {overlay?.note && <BoardNote overlay={overlay} note={overlay.note} scale={scale} pageWidth={width} />}
-            {prompt && (
-              <AskChip
-                left={Math.min((prompt.box.x + prompt.box.w) * scale, width - 150)}
-                top={Math.max(prompt.box.y * scale - 52, 4)}
-                onAsk={() => ask(prompt)}
-                onDismiss={() => setPrompt(null)}
-              />
-            )}
+            <AnimatePresence>
+              {overlay?.note && <BoardNote key="note" overlay={overlay} note={overlay.note} scale={scale} pageWidth={width} />}
+            </AnimatePresence>
+            <AnimatePresence>
+              {prompt && (
+                <AskChip
+                  key={prompt.strokeId}
+                  left={Math.min((prompt.box.x + prompt.box.w) * scale, width - 150)}
+                  top={Math.max(prompt.box.y * scale - 52, 4)}
+                  onAsk={() => ask(prompt)}
+                  onDismiss={() => setPrompt(null)}
+                />
+              )}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -262,25 +268,26 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
   );
 }
 
-function RegionHighlight({ region, sheet, width, height }: { region: NonNullable<BoardOverlay["region"]>; sheet: Sheet; width: number; height: number }) {
-  const { box, path, maskWidth, maskHeight } = region;
+function RegionHighlight({ region, sheet, width, height }: { region: PageRegion; sheet: Sheet; width: number; height: number }) {
   return (
-    <svg
-      className="pointer-events-none absolute inset-0 animate-[region-in_600ms_ease-out]"
-      width={width}
-      height={height}
-      viewBox={`0 0 ${sheet.width} ${sheet.height}`}
-      aria-hidden
-    >
-      <path
-        d={path}
-        transform={`translate(${box.x} ${box.y}) scale(${box.w / maskWidth} ${box.h / maskHeight})`}
+    <svg className="pointer-events-none absolute inset-0" width={width} height={height} viewBox={`0 0 ${sheet.width} ${sheet.height}`} aria-hidden>
+      <motion.path
+        d={region.path}
+        transform={regionTransform(region)}
         fill="#fb923c"
-        fillOpacity={0.28}
+        initial={{ fillOpacity: 0 }}
+        animate={{ fillOpacity: [0, 0.45, 0.28] }}
+        transition={{ duration: 0.9, times: [0, 0.4, 1], ease: "easeOut" }}
       />
     </svg>
   );
 }
+
+const NOTE_TONES = {
+  thinking: "bg-white ring-sky-200",
+  hint: "bg-amber-50 ring-amber-300",
+  done: "bg-emerald-50 ring-emerald-300",
+};
 
 function BoardNote({ overlay, note, scale, pageWidth }: { overlay: BoardOverlay; note: NonNullable<BoardOverlay["note"]>; scale: number; pageWidth: number }) {
   const anchor = overlay.region?.box ?? overlay.loop;
@@ -288,46 +295,65 @@ function BoardNote({ overlay, note, scale, pageWidth }: { overlay: BoardOverlay;
   const fitsRight = right + NOTE_WIDTH <= pageWidth - 8;
   const left = fitsRight ? right : Math.max(8, Math.min(anchor.x * scale, pageWidth - NOTE_WIDTH - 8));
   const top = fitsRight ? Math.max(8, anchor.y * scale - 8) : (anchor.y + anchor.h) * scale + 12;
-  const tones = {
-    thinking: "bg-white ring-sky-200",
-    hint: "bg-amber-50 ring-amber-300",
-    done: "bg-emerald-50 ring-emerald-300",
-  };
   return (
-    <div
+    <motion.div
       role="status"
-      className={`pointer-events-none absolute z-10 flex gap-2 rounded-2xl p-3 shadow-lg ring-1 animate-[note-in_300ms_ease-out] ${tones[note.tone]}`}
-      style={{ left, top, width: NOTE_WIDTH }}
+      layout
+      initial={{ opacity: 0, scale: 0.85, x: -12 }}
+      animate={{ opacity: 1, scale: 1, x: 0, left, top }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+      className={`pointer-events-none absolute z-10 flex origin-top-left gap-2 rounded-2xl p-3 shadow-lg ring-1 transition-colors duration-500 ${NOTE_TONES[note.tone]}`}
+      style={{ width: NOTE_WIDTH }}
     >
-      <Image
-        src="/brand/icon.png"
-        alt=""
-        width={36}
-        height={36}
-        className={`h-9 w-9 shrink-0 rounded-xl ${note.tone === "thinking" ? "animate-bounce" : ""}`}
-      />
+      <motion.div
+        animate={note.tone === "thinking" ? { y: [0, -4, 0], rotate: [0, -6, 0] } : note.tone === "done" ? { rotate: [0, -12, 12, 0], scale: [1, 1.15, 1] } : { y: 0 }}
+        transition={note.tone === "thinking" ? { repeat: Infinity, duration: 1.2 } : { duration: 0.6 }}
+        className="shrink-0"
+      >
+        <Image src="/brand/icon.png" alt="" width={36} height={36} className="h-9 w-9 rounded-xl" />
+      </motion.div>
       <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{note.label}</p>
-        <p className="text-[15px] leading-snug text-slate-800">{note.text}</p>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={note.label + note.text}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2 }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{note.label}</p>
+            <p className="text-[15px] leading-snug text-slate-800">{note.text}</p>
+          </motion.div>
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 function AskChip({ left, top, onAsk, onDismiss }: { left: number; top: number; onAsk: () => void; onDismiss: () => void }) {
   return (
-    <div className="absolute z-20 flex items-center gap-1 rounded-full bg-white p-1 pr-2 shadow-lg ring-1 ring-orange-200" style={{ left, top }}>
-      <button
+    <motion.div
+      initial={{ opacity: 0, scale: 0.6, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      transition={{ type: "spring", stiffness: 420, damping: 22 }}
+      className="absolute z-20 flex items-center gap-1 rounded-full bg-white p-1 pr-2 shadow-lg ring-1 ring-orange-200"
+      style={{ left, top }}
+    >
+      <motion.button
         type="button"
         onClick={onAsk}
-        className="flex items-center gap-2 rounded-full bg-orange-500 py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white active:bg-orange-600"
+        whileHover={{ scale: 1.04 }}
+        whileTap={{ scale: 0.95 }}
+        className="flex items-center gap-2 rounded-full bg-orange-500 py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white"
       >
         <Image src="/brand/icon.png" alt="" width={28} height={28} className="rounded-full" />
         Ask here
-      </button>
+      </motion.button>
       <button type="button" onClick={onDismiss} aria-label="Not now" className="px-1.5 text-lg leading-none text-slate-400">
         ×
       </button>
-    </div>
+    </motion.div>
   );
 }

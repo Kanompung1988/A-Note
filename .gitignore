@@ -47,3 +47,6 @@ next-env.d.ts
 # local sample worksheets
 /samples/
 /smoke-shots/
+
+# local demo data (classes, uploads)
+/.data/

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rateLimit } from "@/lib/ai/rate-limit";
 import { errorResponse, imageDataUrl } from "@/lib/ai/http";
 import { segmentRegion } from "@/lib/ai/segment";
 
@@ -12,6 +13,8 @@ const Body = z.object({
 
 /** SAM 3.1: the learner's loop in, a tight mask of what they circled out. */
 export async function POST(request: Request) {
+  const limited = rateLimit(request, "segment");
+  if (limited) return limited;
   try {
     const { image, size, box } = Body.parse(await request.json());
     return Response.json({ region: await segmentRegion(image, size, box) });
