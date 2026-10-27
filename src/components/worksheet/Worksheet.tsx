@@ -37,6 +37,8 @@ export default function Worksheet({ sheet, onAsk }: Props) {
 
   const scale = width / sheet.width;
   const height = Math.round(sheet.height * scale);
+  // the page (and its canvases) mounts only once the available width is known
+  const mounted = width > 0;
 
   // Fit the page to the available width.
   useEffect(() => {
@@ -63,7 +65,8 @@ export default function Worksheet({ sheet, onAsk }: Props) {
 
   // Apple Pencil arrives as touches too. Stop those from scrolling or selecting, but leave fingers alone.
   useEffect(() => {
-    const canvas = liveRef.current!;
+    const canvas = liveRef.current;
+    if (!canvas) return;
     const stopStylus = (e: TouchEvent) => {
       for (const touch of Array.from(e.changedTouches)) {
         if ((touch as Touch & { touchType?: string }).touchType === "stylus") {
@@ -78,7 +81,7 @@ export default function Worksheet({ sheet, onAsk }: Props) {
       canvas.removeEventListener("touchstart", stopStylus);
       canvas.removeEventListener("touchmove", stopStylus);
     };
-  }, []);
+  }, [mounted]);
 
   function commit(next: Stroke[]) {
     setHistory((h) => [...h.slice(-HISTORY_LIMIT + 1), strokes]);
@@ -210,7 +213,7 @@ export default function Worksheet({ sheet, onAsk }: Props) {
         onClear={clearPage}
       />
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-slate-100 py-4">
-        {width > 0 && (
+        {mounted && (
           <div className="relative mx-auto shadow-md" style={{ width, height }}>
             <Image
               src={sheet.src}
