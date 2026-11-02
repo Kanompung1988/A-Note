@@ -51,3 +51,23 @@ export const keyContext = z
     ]),
   })
   .optional();
+
+const inkPoint = z.object({ x: z.number(), y: z.number(), p: z.number() });
+
+/** A learner's ink as the board stores it. Bounded so one page stays well under the request limit. */
+export const strokesBody = z
+  .array(
+    z.object({
+      id: z.string().min(1).max(60),
+      tool: z.enum(["pen", "highlighter", "text"]),
+      color: z.string().max(20),
+      size: z.number().min(0).max(200),
+      pressure: z.boolean(),
+      points: z.array(inkPoint).max(4000),
+      asked: z.boolean().optional(),
+      shape: z.enum(["line", "arrow", "rect", "ellipse"]).optional(),
+      text: z.string().max(2000).optional(),
+      fontSize: z.number().positive().max(400).optional(),
+    }),
+  )
+  .max(3000);

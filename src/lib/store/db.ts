@@ -7,7 +7,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // Supabase (the `docs` table, see supabase/migrations) when SUPABASE_URL is set, otherwise a JSON
 // file in .data/ so the app runs locally with no setup.
 
-export type Collection = "classes" | "assignments" | "students" | "asks" | "runs";
+export type Collection = "classes" | "assignments" | "students" | "asks" | "runs" | "work" | "ink";
 
 export type Doc = { id: string; classId?: string };
 

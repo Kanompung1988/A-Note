@@ -164,6 +164,7 @@ function snapshot({ assignment, data }: Input) {
       solved: mine.filter((a) => a.kind !== "check" && a.solved).length,
       hints_used: mine.reduce((n, a) => n + a.hintsSeen, 0),
       checked_work: checks.map((c) => ({ question: questionAt(assignment.sheet, c.loop), correct: c.solved, slip: c.slip ?? null })),
+      handed_in: data.work.some((w) => w.studentId === s.id && w.assignmentId === assignment.id && w.status === "handed_in"),
     };
   });
   return {

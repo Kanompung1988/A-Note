@@ -10,13 +10,14 @@ import { clusterAsks } from "@/lib/class/cluster";
 import { formatCode, teacherSeat } from "@/lib/class/identity";
 import { renderSpots } from "@/lib/class/images";
 import { subjectStyle } from "@/lib/sheets";
-import type { Assignment, CopilotRun, RunStep } from "@/lib/store/types";
+import type { Assignment, CopilotRun, RunStep, Student } from "@/lib/store/types";
 import { isLive, timeAgo } from "@/lib/time";
 import { AssignModal } from "./AssignModal";
 import { CopilotPanel } from "./CopilotPanel";
 import { ClassHeatmap } from "./ClassHeatmap";
 import { JoinCodeModal } from "./JoinCodeModal";
 import { SpotsPanel } from "./SpotsPanel";
+import { WorkViewer } from "./WorkViewer";
 
 const POLL_MS = 4000;
 
@@ -39,6 +40,7 @@ export default function TeacherDashboard({ code }: { code: string }) {
   const [codeOpen, setCodeOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [live, setLive] = useState<LiveRun | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
 
   // Live: poll the class while the dashboard is open.
   useEffect(() => {
@@ -243,7 +245,7 @@ export default function TeacherDashboard({ code }: { code: string }) {
               />
             </div>
 
-            <Learners data={data} assignmentId={selected.id} now={now} />
+            <Learners data={data} assignment={selected} now={now} onView={setViewing} />
           </section>
         ) : (
           <section className="grid place-items-center rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200">
@@ -270,13 +272,35 @@ export default function TeacherDashboard({ code }: { code: string }) {
           setSelectedId(a.id);
         }}
       />
+      {selected && (
+        <WorkViewer
+          code={code}
+          teacherKey={seat.teacherKey}
+          assignment={selected}
+          students={learnersFor(data, selected)}
+          asks={allAsks}
+          work={data.work.filter((w) => w.assignmentId === selected.id)}
+          studentId={viewing}
+          now={now}
+          onSelect={setViewing}
+          onSaved={(w) => setData((d) => (d ? { ...d, work: [...d.work.filter((x) => x.id !== w.id), w] } : d))}
+        />
+      )}
       <JoinCodeModal open={codeOpen} code={code} className={data.classRoom.name} onClose={() => setCodeOpen(false)} />
     </div>
   );
 }
 
-function Learners({ data, assignmentId, now }: { data: Dashboard; assignmentId: string; now: number }) {
-  const rows = data.students
+/** The learners an assignment is for: everyone, or the group it was made for. */
+function learnersFor(data: Dashboard, assignment: Assignment): Student[] {
+  return data.students.filter((s) => !assignment.studentIds || assignment.studentIds.includes(s.id));
+}
+
+function Learners({ data, assignment, now, onView }: { data: Dashboard; assignment: Assignment; now: number; onView: (studentId: string) => void }) {
+  const assignmentId = assignment.id;
+  const handedIn = data.work.filter((w) => w.assignmentId === assignmentId && w.status === "handed_in").length;
+  const students = learnersFor(data, assignment);
+  const rows = students
     .map((s) => {
       const all = data.asks.filter((a) => a.studentId === s.id && a.assignmentId === assignmentId);
       const mine = all.filter((a) => a.kind !== "check");
@@ -286,6 +310,7 @@ function Learners({ data, assignmentId, now }: { data: Dashboard; assignmentId: 
         asks: mine.length,
         solved: mine.filter((a) => a.solved).length,
         hints: mine.reduce((sum, a) => sum + a.hintsSeen, 0),
+        work: data.work.find((w) => w.assignmentId === assignmentId && w.studentId === s.id) ?? null,
         right: checked.filter((a) => a.solved).length,
         slips: checked.filter((a) => !a.solved).length,
       };
@@ -294,7 +319,15 @@ function Learners({ data, assignmentId, now }: { data: Dashboard; assignmentId: 
 
   return (
     <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
-      <p className="font-semibold text-slate-900">Learners</p>
+      <div className="flex items-center gap-3">
+        <p className="font-semibold text-slate-900">Learners</p>
+        {students.length > 0 && (
+          <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+            Handed in {handedIn}/{students.length}
+          </span>
+        )}
+        <span className="ml-auto hidden text-xs text-slate-400 sm:block">Tap a learner to see their page</span>
+      </div>
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-slate-500">Nobody has joined yet. Share the class code.</p>
       ) : (
@@ -306,7 +339,8 @@ function Learners({ data, assignmentId, now }: { data: Dashboard; assignmentId: 
               <th className="py-2 text-right font-medium">Solved</th>
               <th className="hidden py-2 text-right font-medium sm:table-cell">Hints used</th>
               <th className="py-2 text-right font-medium">Checked</th>
-              <th className="py-2 text-right font-medium">Last active</th>
+              <th className="py-2 text-right font-medium">Work</th>
+              <th className="hidden py-2 text-right font-medium md:table-cell">Last active</th>
             </tr>
           </thead>
           <tbody>
@@ -331,7 +365,18 @@ function Learners({ data, assignmentId, now }: { data: Dashboard; assignmentId: 
                       </>
                     )}
                   </td>
-                  <td className="py-2.5 text-right text-slate-500">{timeAgo(r.student.lastSeenAt, now)}</td>
+                  <td className="py-2.5 text-right">
+                    <button type="button" onClick={() => onView(r.student.id)} className="rounded-lg px-2 py-1 text-xs font-semibold ring-1 ring-slate-200 hover:bg-slate-50">
+                      {r.work?.status === "handed_in" ? (
+                        <span className="text-emerald-700">Handed in ✓</span>
+                      ) : r.work?.strokeCount ? (
+                        <span className="text-slate-600">In progress</span>
+                      ) : (
+                        <span className="text-slate-400">View</span>
+                      )}
+                    </button>
+                  </td>
+                  <td className="hidden py-2.5 text-right text-slate-500 md:table-cell">{timeAgo(r.student.lastSeenAt, now)}</td>
                 </motion.tr>
               ))}
             </AnimatePresence>

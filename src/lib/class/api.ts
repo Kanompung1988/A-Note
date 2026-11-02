@@ -1,10 +1,10 @@
 // Browser-side calls for classes, asks, uploads and voice.
 import type { ClassInsight } from "@/lib/ai/insights";
-import type { Box } from "@/lib/ink/geometry";
+import type { Box, Stroke } from "@/lib/ink/geometry";
 import type { PageRegion } from "@/lib/regions";
-import type { Assignment, Dashboard, PublicClass, Student } from "@/lib/store/types";
+import type { Assignment, Dashboard, PublicClass, Student, WorkRecord } from "@/lib/store/types";
 
-export type { ClassInsight, Dashboard, PublicClass };
+export type { ClassInsight, Dashboard, PublicClass, WorkRecord };
 
 async function request<T>(url: string, init: RequestInit & { teacherKey?: string } = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -119,3 +119,21 @@ export const publishDraft = (code: string, teacherKey: string, id: string) =>
 
 export const runCopilot = (code: string, teacherKey: string, body: { assignmentId: string; page: string }, onEvent: (event: StreamEvent) => void) =>
   stream(`/api/classes/${encodeURIComponent(code)}/copilot`, { method: "POST", teacherKey, body: json(body) }, onEvent);
+
+const seatQuery = (s: { code: string; studentId: string; assignmentId: string }) =>
+  `code=${encodeURIComponent(s.code)}&studentId=${encodeURIComponent(s.studentId)}&assignmentId=${encodeURIComponent(s.assignmentId)}`;
+
+export const getMyWork = (seat: { code: string; studentId: string; assignmentId: string }) =>
+  request<{ work: WorkRecord | null; strokes: Stroke[] }>(`/api/work?${seatQuery(seat)}`, { cache: "no-store" });
+
+export const saveMyWork = (seat: { code: string; studentId: string; assignmentId: string }, strokes: Stroke[], handIn = false) =>
+  request<{ work: WorkRecord }>("/api/work", { method: "PUT", body: json({ ...seat, strokes, handIn }) });
+
+export const getLearnerWork = (code: string, teacherKey: string, assignmentId: string, studentId: string) =>
+  request<{ work: WorkRecord | null; strokes: Stroke[] }>(
+    `/api/classes/${encodeURIComponent(code)}/work?assignmentId=${encodeURIComponent(assignmentId)}&studentId=${encodeURIComponent(studentId)}`,
+    { teacherKey, cache: "no-store" },
+  );
+
+export const sendFeedback = (code: string, teacherKey: string, body: { assignmentId: string; studentId: string; feedback: string }) =>
+  request<{ work: WorkRecord }>(`/api/classes/${encodeURIComponent(code)}/work`, { method: "PATCH", teacherKey, body: json(body) });

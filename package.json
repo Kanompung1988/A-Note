@@ -15,7 +15,8 @@
     "smoke:check": "node scripts/smoke-check.mjs",
     "smoke:platform": "node scripts/smoke-platform.mjs",
     "seed": "node scripts/seed-demo.mjs",
-    "smoke:tools": "node scripts/smoke-tools.mjs"
+    "smoke:tools": "node scripts/smoke-tools.mjs",
+    "smoke:handin": "node scripts/smoke-handin.mjs"
   },
   "dependencies": {
     "@meta-sam/parser": "^0.1.0",

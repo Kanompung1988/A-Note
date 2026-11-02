@@ -33,12 +33,30 @@ type Props = {
   /** shown in the header next to the logo */
   subtitle?: ReactNode;
   backHref?: string;
+  /** class work saved from another device, used when this one has none */
+  initialStrokes?: Stroke[];
+  /** every change to the ink (class work autosaves through this) */
+  onInkChange?: (strokes: Stroke[]) => void;
+  /** extra toolbar actions, e.g. "Hand in" */
+  toolbarActions?: ReactNode;
+  /** shown above the page, e.g. the teacher's note */
+  banner?: ReactNode;
 };
 
 /** Checking looks at the most recent block of working, at most this many lines. */
 const MAX_CHECK_LINES = 12;
 
-export default function StudyBoard({ initialSheet = SAMPLE_SHEETS[0], allowSheetChange = true, classContext, subtitle, backHref = "/" }: Props) {
+export default function StudyBoard({
+  initialSheet = SAMPLE_SHEETS[0],
+  allowSheetChange = true,
+  classContext,
+  subtitle,
+  backHref = "/",
+  initialStrokes,
+  onInkChange,
+  toolbarActions,
+  banner,
+}: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   // session id → the recorded ask id, so progress can be sent before the record call returns
   const recordsRef = useRef(new Map<string, Promise<string | null>>());
@@ -264,8 +282,19 @@ export default function StudyBoard({ initialSheet = SAMPLE_SHEETS[0], allowSheet
           </div>
         )}
       </header>
+      {banner}
       <div className="flex min-h-0 flex-1">
-        <Worksheet key={sheet.id} sheet={sheet} overlay={toOverlay(session)} marks={toMarks(check)} onAsk={handleAsk} onCheck={handleCheck} />
+        <Worksheet
+          key={sheet.id}
+          sheet={sheet}
+          overlay={toOverlay(session)}
+          marks={toMarks(check)}
+          initialStrokes={initialStrokes}
+          onAsk={handleAsk}
+          onCheck={handleCheck}
+          onChange={onInkChange}
+          actions={toolbarActions}
+        />
         {session && (
           <AskPanel
             session={session}

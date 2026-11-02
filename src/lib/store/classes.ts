@@ -4,7 +4,8 @@ import type { Box } from "@/lib/ink/geometry";
 import type { PageRegion } from "@/lib/regions";
 import type { Sheet } from "@/lib/sheets";
 import { db } from "./db";
-import type { AskRecord, Assignment, ClassRoom, CopilotRun, Dashboard, PublicAssignment, PublicClass, Student } from "./types";
+import type { Stroke } from "@/lib/ink/geometry";
+import type { AskRecord, Assignment, ClassRoom, CopilotRun, Dashboard, InkRecord, PublicAssignment, PublicClass, Student, WorkRecord } from "./types";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -66,12 +67,16 @@ export function toPublic(assignment: Assignment, studentId: string | null): Publ
 export async function publicClass(code: string, studentId: string | null = null): Promise<PublicClass | null> {
   const c = await classByCode(code);
   if (!c) return null;
-  const assignments = await db().find<Assignment>("assignments", { classId: c.id });
+  const [assignments, work] = await Promise.all([
+    db().find<Assignment>("assignments", { classId: c.id }),
+    studentId ? db().find<WorkRecord>("work", { classId: c.id, studentId }) : Promise.resolve([]),
+  ]);
   return {
     code: c.code,
     name: c.name,
     teacherName: c.teacherName,
     assignments: assignments.filter((a) => visibleTo(a, studentId)).map((a) => toPublic(a, studentId)),
+    work,
   };
 }
 
@@ -110,7 +115,11 @@ export async function publishAssignment(classId: string, assignmentId: string): 
 
 export async function removeAssignment(classId: string, assignmentId: string): Promise<boolean> {
   if (!(await getAssignment(classId, assignmentId))) return false;
-  await db().remove("asks", { classId, assignmentId });
+  await Promise.all([
+    db().remove("asks", { classId, assignmentId }),
+    db().remove("work", { classId, assignmentId }),
+    db().remove("ink", { classId, assignmentId }),
+  ]);
   await db().remove("assignments", { id: assignmentId });
   return true;
 }
@@ -186,15 +195,80 @@ export async function updateAsk(askId: string, studentId: string, patch: AskPatc
 export async function dashboard(classRoom: ClassRoom): Promise<Dashboard> {
   const { teacherKey: _secret, ...safe } = classRoom;
   void _secret;
-  const [assignments, students, asks, runs] = await Promise.all([
+  const [assignments, students, asks, runs, work] = await Promise.all([
     db().find<Assignment>("assignments", { classId: classRoom.id }),
     db().find<Student>("students", { classId: classRoom.id }),
     db().find<AskRecord>("asks", { classId: classRoom.id }),
     db().find<CopilotRun>("runs", { classId: classRoom.id }),
+    db().find<WorkRecord>("work", { classId: classRoom.id }),
   ]);
-  return { classRoom: safe, assignments, students, asks, runs: runs.slice(-5) };
+  return { classRoom: safe, assignments, students, asks, runs: runs.slice(-5), work };
 }
 
 export function saveRun(run: CopilotRun): Promise<CopilotRun> {
   return db().put("runs", run);
+}
+
+const workId = (assignmentId: string, studentId: string) => `${assignmentId}.${studentId}`;
+
+/** Saves a learner's ink for an assignment; `handIn` marks it handed in (it stays editable). */
+export async function saveWork(
+  input: { code: string; studentId: string; assignmentId: string },
+  strokes: Stroke[],
+  handIn: boolean,
+): Promise<WorkRecord | null> {
+  const ctx = await learnerContext(input);
+  if (!ctx) return null;
+  const id = workId(ctx.assignment.id, ctx.student.id);
+  const existing = await db().get<WorkRecord>("work", id);
+  const at = now();
+  const record: WorkRecord = {
+    id,
+    classId: ctx.classRoom.id,
+    assignmentId: ctx.assignment.id,
+    studentId: ctx.student.id,
+    status: handIn || existing?.status === "handed_in" ? "handed_in" : "working",
+    strokeCount: strokes.length,
+    updatedAt: at,
+    handedInAt: handIn ? at : (existing?.handedInAt ?? null),
+    feedback: existing?.feedback ?? null,
+    feedbackAt: existing?.feedbackAt ?? null,
+  };
+  await Promise.all([db().put<InkRecord>("ink", { id, classId: ctx.classRoom.id, assignmentId: ctx.assignment.id, strokes, updatedAt: at }), db().put("work", record)]);
+  void touchStudent(ctx.student.id);
+  return record;
+}
+
+/** The ink and status of one learner's work, for that learner or the teacher. */
+export async function readWork(classId: string, assignmentId: string, studentId: string): Promise<{ work: WorkRecord | null; strokes: Stroke[] }> {
+  const id = workId(assignmentId, studentId);
+  const [work, ink] = await Promise.all([db().get<WorkRecord>("work", id), db().get<InkRecord>("ink", id)]);
+  return { work: work && work.classId === classId ? work : null, strokes: ink && ink.classId === classId ? ink.strokes : [] };
+}
+
+export async function learnerWork(input: { code: string; studentId: string; assignmentId: string }) {
+  const ctx = await learnerContext(input);
+  return ctx ? readWork(ctx.classRoom.id, ctx.assignment.id, ctx.student.id) : null;
+}
+
+/** The teacher's note back to a learner on one assignment. */
+export async function setFeedback(classId: string, assignmentId: string, studentId: string, feedback: string): Promise<WorkRecord | null> {
+  const student = await db().get<Student>("students", studentId);
+  const assignment = await getAssignment(classId, assignmentId);
+  if (!student || student.classId !== classId || !assignment) return null;
+  const id = workId(assignmentId, studentId);
+  const existing = await db().get<WorkRecord>("work", id);
+  const record: WorkRecord = existing ?? {
+    id,
+    classId,
+    assignmentId,
+    studentId,
+    status: "working",
+    strokeCount: 0,
+    updatedAt: now(),
+    handedInAt: null,
+    feedback: null,
+    feedbackAt: null,
+  };
+  return db().put<WorkRecord>("work", { ...record, feedback: feedback.trim() || null, feedbackAt: feedback.trim() ? now() : null });
 }

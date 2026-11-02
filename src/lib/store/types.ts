@@ -1,4 +1,4 @@
-import type { Box } from "@/lib/ink/geometry";
+import type { Box, Stroke } from "@/lib/ink/geometry";
 import type { PageRegion } from "@/lib/regions";
 import type { Sheet } from "@/lib/sheets";
 
@@ -73,6 +73,25 @@ export type AskRecord = {
   updatedAt: string;
 };
 
+/** A learner's work on one assignment, without the ink (light enough for the live dashboard). */
+export type WorkRecord = {
+  /** `<assignmentId>.<studentId>` */
+  id: string;
+  classId: string;
+  assignmentId: string;
+  studentId: string;
+  status: "working" | "handed_in";
+  strokeCount: number;
+  updatedAt: string;
+  handedInAt: string | null;
+  /** the teacher's note back to the learner */
+  feedback: string | null;
+  feedbackAt: string | null;
+};
+
+/** The learner's ink for one assignment, stored apart from its WorkRecord. */
+export type InkRecord = { id: string; classId: string; assignmentId: string; strokes: Stroke[]; updatedAt: string };
+
 export type RunStep = {
   at: string;
   kind: "think" | "tool" | "check" | "done" | "error";
@@ -101,7 +120,7 @@ export type CopilotRun = {
   finishedAt: string | null;
 };
 
-export type PublicClass = Pick<ClassRoom, "code" | "name" | "teacherName"> & { assignments: PublicAssignment[] };
+export type PublicClass = Pick<ClassRoom, "code" | "name" | "teacherName"> & { assignments: PublicAssignment[]; work?: WorkRecord[] };
 
 export type Dashboard = {
   classRoom: Omit<ClassRoom, "teacherKey">;
@@ -109,4 +128,5 @@ export type Dashboard = {
   students: Student[];
   asks: AskRecord[];
   runs: CopilotRun[];
+  work: WorkRecord[];
 };
