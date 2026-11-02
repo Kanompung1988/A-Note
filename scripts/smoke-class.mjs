@@ -67,6 +67,7 @@ try {
   const code = teacher.url().split("/").pop();
   check(Boolean(code), `teacher created class ${code}`);
   await teacher.getByRole("button", { name: "Choose a worksheet" }).click();
+  await teacher.getByRole("button", { name: "Sample worksheets" }).click();
   await teacher.getByRole("button", { name: /Worksheet 3 · Linear Equations/ }).click();
   check(await visible(teacher.getByRole("heading", { name: "Worksheet 3 · Linear Equations" }), 5_000), "worksheet assigned and shown on the dashboard");
 
