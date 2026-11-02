@@ -17,7 +17,8 @@
     "seed": "node scripts/seed-demo.mjs",
     "smoke:tools": "node scripts/smoke-tools.mjs",
     "smoke:handin": "node scripts/smoke-handin.mjs",
-    "smoke:pdf": "node scripts/smoke-pdf.mjs"
+    "smoke:pdf": "node scripts/smoke-pdf.mjs",
+    "smoke:manage": "node scripts/smoke-manage.mjs"
   },
   "dependencies": {
     "@meta-sam/parser": "^0.1.0",

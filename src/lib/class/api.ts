@@ -141,3 +141,11 @@ export const getLearnerWork = (code: string, teacherKey: string, assignmentId: s
 
 export const sendFeedback = (code: string, teacherKey: string, body: { assignmentId: string; studentId: string; feedback: string }) =>
   request<{ work: WorkRecord }>(`/api/classes/${encodeURIComponent(code)}/work`, { method: "PATCH", teacherKey, body: json(body) });
+
+export const renameClass = (code: string, teacherKey: string, body: { name: string; teacherName: string }) =>
+  request<{ code: string; name: string; teacherName: string }>(`/api/classes/${encodeURIComponent(code)}`, { method: "PATCH", teacherKey, body: json(body) });
+
+export const deleteClass = (code: string, teacherKey: string) => request<void>(`/api/classes/${encodeURIComponent(code)}`, { method: "DELETE", teacherKey });
+
+export const removeStudent = (code: string, teacherKey: string, studentId: string) =>
+  request<void>(`/api/classes/${encodeURIComponent(code)}/students?id=${encodeURIComponent(studentId)}`, { method: "DELETE", teacherKey });

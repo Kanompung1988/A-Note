@@ -13,9 +13,11 @@ import { subjectStyle } from "@/lib/sheets";
 import type { Assignment, CopilotRun, RunStep, Student } from "@/lib/store/types";
 import { isLive, timeAgo } from "@/lib/time";
 import { AssignModal } from "./AssignModal";
+import { ClassSettings } from "./ClassSettings";
 import { CopilotPanel } from "./CopilotPanel";
 import { ClassHeatmap } from "./ClassHeatmap";
 import { JoinCodeModal } from "./JoinCodeModal";
+import { LearnerProgress } from "./LearnerProgress";
 import { SpotsPanel } from "./SpotsPanel";
 import { WorkViewer } from "./WorkViewer";
 
@@ -41,6 +43,7 @@ export default function TeacherDashboard({ code }: { code: string }) {
   const [now, setNow] = useState(() => Date.now());
   const [live, setLive] = useState<LiveRun | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [progressOf, setProgressOf] = useState<string | null>(null);
 
   // Live: poll the class while the dashboard is open.
   useEffect(() => {
@@ -155,6 +158,12 @@ export default function TeacherDashboard({ code }: { code: string }) {
           <button type="button" onClick={() => setCodeOpen(true)} className="rounded-xl bg-slate-900 px-3 py-2 font-mono text-sm font-semibold tracking-widest text-white">
             {formatCode(code)}
           </button>
+          <ClassSettings
+            code={code}
+            teacherKey={seat.teacherKey}
+            data={data}
+            onRenamed={(name, teacherName) => setData((d) => (d ? { ...d, classRoom: { ...d.classRoom, name, teacherName } } : d))}
+          />
         </div>
       </TopBar>
 
@@ -245,7 +254,7 @@ export default function TeacherDashboard({ code }: { code: string }) {
               />
             </div>
 
-            <Learners data={data} assignment={selected} now={now} onView={setViewing} />
+            <Learners data={data} assignment={selected} now={now} onView={setViewing} onOpenLearner={setProgressOf} />
           </section>
         ) : (
           <section className="grid place-items-center rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200">
@@ -286,6 +295,32 @@ export default function TeacherDashboard({ code }: { code: string }) {
           onSaved={(w) => setData((d) => (d ? { ...d, work: [...d.work.filter((x) => x.id !== w.id), w] } : d))}
         />
       )}
+      <LearnerProgress
+        code={code}
+        teacherKey={seat.teacherKey}
+        data={data}
+        studentId={progressOf}
+        now={now}
+        onClose={() => setProgressOf(null)}
+        onViewPage={(assignmentId, studentId) => {
+          setProgressOf(null);
+          setSelectedId(assignmentId);
+          setViewing(studentId);
+        }}
+        onRemoved={(studentId) => {
+          setProgressOf(null);
+          setData((d) =>
+            d
+              ? {
+                  ...d,
+                  students: d.students.filter((x) => x.id !== studentId),
+                  asks: d.asks.filter((x) => x.studentId !== studentId),
+                  work: d.work.filter((x) => x.studentId !== studentId),
+                }
+              : d,
+          );
+        }}
+      />
       <JoinCodeModal open={codeOpen} code={code} className={data.classRoom.name} onClose={() => setCodeOpen(false)} />
     </div>
   );
@@ -296,7 +331,19 @@ function learnersFor(data: Dashboard, assignment: Assignment): Student[] {
   return data.students.filter((s) => !assignment.studentIds || assignment.studentIds.includes(s.id));
 }
 
-function Learners({ data, assignment, now, onView }: { data: Dashboard; assignment: Assignment; now: number; onView: (studentId: string) => void }) {
+function Learners({
+  data,
+  assignment,
+  now,
+  onView,
+  onOpenLearner,
+}: {
+  data: Dashboard;
+  assignment: Assignment;
+  now: number;
+  onView: (studentId: string) => void;
+  onOpenLearner: (studentId: string) => void;
+}) {
   const assignmentId = assignment.id;
   const handedIn = data.work.filter((w) => w.assignmentId === assignmentId && w.status === "handed_in").length;
   const students = learnersFor(data, assignment);
@@ -326,7 +373,7 @@ function Learners({ data, assignment, now, onView }: { data: Dashboard; assignme
             Handed in {handedIn}/{students.length}
           </span>
         )}
-        <span className="ml-auto hidden text-xs text-slate-400 sm:block">Tap a learner to see their page</span>
+        <span className="ml-auto hidden text-xs text-slate-400 sm:block">Tap a name for their progress, or Work to see their page</span>
       </div>
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-slate-500">Nobody has joined yet. Share the class code.</p>
@@ -348,10 +395,10 @@ function Learners({ data, assignment, now, onView }: { data: Dashboard; assignme
               {rows.map((r) => (
                 <motion.tr key={r.student.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="border-t border-slate-100">
                   <td className="py-2.5 font-medium text-slate-800">
-                    <span className="flex items-center gap-2">
+                    <button type="button" onClick={() => onOpenLearner(r.student.id)} className="flex items-center gap-2 text-left hover:text-orange-600 hover:underline">
                       <span className={`h-2 w-2 rounded-full ${isLive(r.student.lastSeenAt, now) ? "bg-emerald-500" : "bg-slate-300"}`} />
                       {r.student.name}
-                    </span>
+                    </button>
                   </td>
                   <td className="py-2.5 text-right tabular-nums">{r.asks}</td>
                   <td className="py-2.5 text-right tabular-nums">{r.solved}</td>

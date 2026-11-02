@@ -90,7 +90,7 @@ export type WorkRecord = {
 };
 
 /** The learner's ink for one assignment, stored apart from its WorkRecord. */
-export type InkRecord = { id: string; classId: string; assignmentId: string; strokes: Stroke[]; updatedAt: string };
+export type InkRecord = { id: string; classId: string; assignmentId: string; studentId: string; strokes: Stroke[]; updatedAt: string };
 
 export type RunStep = {
   at: string;

@@ -234,7 +234,7 @@ export async function saveWork(
     feedback: existing?.feedback ?? null,
     feedbackAt: existing?.feedbackAt ?? null,
   };
-  await Promise.all([db().put<InkRecord>("ink", { id, classId: ctx.classRoom.id, assignmentId: ctx.assignment.id, strokes, updatedAt: at }), db().put("work", record)]);
+  await Promise.all([db().put<InkRecord>("ink", { id, classId: ctx.classRoom.id, assignmentId: ctx.assignment.id, studentId: ctx.student.id, strokes, updatedAt: at }), db().put("work", record)]);
   void touchStudent(ctx.student.id);
   return record;
 }
@@ -271,4 +271,28 @@ export async function setFeedback(classId: string, assignmentId: string, student
     feedbackAt: null,
   };
   return db().put<WorkRecord>("work", { ...record, feedback: feedback.trim() || null, feedbackAt: feedback.trim() ? now() : null });
+}
+
+export async function renameClass(classRoom: ClassRoom, input: { name: string; teacherName: string }): Promise<ClassRoom> {
+  return db().put<ClassRoom>("classes", { ...classRoom, name: input.name, teacherName: input.teacherName });
+}
+
+/** Deletes a class and everything in it. Uploaded files stay in storage, unreferenced. */
+export async function deleteClass(classRoom: ClassRoom): Promise<void> {
+  const classId = classRoom.id;
+  await Promise.all((["asks", "work", "ink", "runs", "students", "assignments"] as const).map((c) => db().remove(c, { classId })));
+  await db().remove("classes", { id: classId });
+}
+
+/** Removes a learner and their asks and work from the class. Joining again starts fresh. */
+export async function removeStudent(classId: string, studentId: string): Promise<boolean> {
+  const student = await db().get<Student>("students", studentId);
+  if (!student || student.classId !== classId) return false;
+  await Promise.all([
+    db().remove("asks", { classId, studentId }),
+    db().remove("work", { classId, studentId }),
+    db().remove("ink", { classId, studentId }),
+  ]);
+  await db().remove("students", { id: studentId });
+  return true;
 }
