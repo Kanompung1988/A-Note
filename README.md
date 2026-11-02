@@ -32,6 +32,7 @@ default and answers each learner in their own language.
 | 1 | Teacher | **Create.** Type one line ("two-step equations with market word problems"). A-Note writes the worksheet and a private answer key, draws the scene, and **re-solves every question with a second model** before the teacher sees it. Or assign a sample or a photo. | Muse Spark, Muse Wonder, Muse Image |
 | 2 | Learner | **Circle to ask.** Write on the page with a pen or a mouse. Loop anything: SAM 3.1 outlines exactly what was meant, and the tutor pins one hint at a time on the page, grounded in the teacher's key but never revealing it. Ask by voice, or tap **Show me** for a picture. | SAM 3.1, Muse Spark, Muse Voice Transcribe, Muse Image |
 | 3 | Learner | **Check my work.** A-Note reads the handwritten working line by line and **circles the first slip in red pen** on the page, with ticks on the lines that are right. | Muse Spark |
+| 3½ | Learner | **Hand in.** The page autosaves to the class and follows the learner to any device; one tap hands it in. | — |
 | 4 | Teacher | **See and act.** The dashboard lights up the spots the class circled and who slipped where. **The co-pilot** (an agent with tool calls) groups learners by misconception, writes practice for each group, has every answer verified, assigns it only to those learners, and hands over a ten-minute plan for tomorrow. | Muse Spark (tools), Muse Wonder |
 
 <table>
@@ -43,6 +44,17 @@ default and answers each learner in their own language.
 <td colspan="2"><img src="docs/screenshots/copilot.png" alt="The class co-pilot: live trace, practice it assigned, and tomorrow's plan"><br><sub>The co-pilot: its live trace, the practice it assigned to each group (every answer verified by Muse Wonder), and the plan.</sub></td>
 </tr>
 </table>
+
+## The rest of the classroom
+
+- **A real whiteboard:** pen in three widths and five colours, highlighter, typed text (click to edit), line / arrow / rectangle / ellipse,
+  lasso to select, move, duplicate or delete, eraser, undo and redo, zoom 75–300% (buttons or trackpad pinch), keyboard shortcuts.
+  Apple Pencil, mouse and trackpad; fingers scroll.
+- **Any worksheet:** samples, Create with A-Note, a photo, or a **PDF** (up to eight pages, rendered in the browser with pdf.js; the tutor sees the page that was circled).
+- **Hand in and reply:** the teacher opens each learner's page with their ink, the spots they asked about and the slips A-Note found,
+  steps through the class, and sends a note the learner sees on the worksheet.
+- **Class management:** rename, export every result as CSV, each learner's progress with the skills to practise next (from the answer key),
+  remove a learner, delete a class.
 
 ## How A-Note uses Meta's models
 
@@ -121,7 +133,11 @@ npm run seed -- http://localhost:3000   # a demo class with circles and checked 
 Tests:
 
 ```bash
-npm test                                                   # unit tests (vitest): answers, ink, layout, clustering, WAV
+npm test                                                   # unit tests (vitest): answers, ink, shapes, layout, progress, clustering, WAV
+npm run smoke:tools -- <url> shots                         # every board tool in Chrome (no model calls)
+npm run smoke:handin -- <url> shots                        # autosave, hand in, teacher review and note, second device
+npm run smoke:pdf -- <url> shots                           # a three-page PDF, a circle on page 2, a teacher upload
+npm run smoke:manage -- <url> shots                        # rename, CSV export, learner progress, remove, delete
 npm run smoke -- <url> shots --ai                          # Chrome: a learner circles, gets hints, solves it
 npm run smoke:class -- <url> shots --ai                    # a teacher and two learners, live dashboard and insight
 npm run smoke:check -- <url> shots                         # Check my work marks a wrong and a right block
@@ -134,7 +150,7 @@ node scripts/eval.mjs <url>                                # the eval above
 All of it. In order (see `git log`): the Next.js app and Meta client; the brand; the pen worksheet and loop detection; SAM 3.1 + Muse Spark
 tutoring on the page; classes, the live dashboard, class insight and voice; the landing page; then the classroom platform: Create with
 A-Note (Spark + Wonder + Image), Check my work, the co-pilot agent, answer-key grounding, Show me, Supabase storage, the Vercel deploy,
-eval and smoke suites.
+eval and smoke suites; then the full board toolset, hand in and teacher notes, PDF worksheets and class management.
 
 ## Other tools
 
