@@ -32,7 +32,8 @@ export async function renderSpots(sheet: Sheet, clusters: Cluster[]): Promise<st
   const img = new Image();
   img.src = sheet.src;
   await img.decode();
-  const scale = Math.min(1, 1280 / sheet.width);
+  // long PDF sheets are shrunk to stay readable as one image
+  const scale = Math.min(1, 1280 / sheet.width, 6000 / sheet.height);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(sheet.width * scale);
   canvas.height = Math.round(sheet.height * scale);

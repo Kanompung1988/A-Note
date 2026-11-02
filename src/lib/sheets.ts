@@ -3,6 +3,9 @@ import type { Box } from "@/lib/ink/geometry";
 /** Where a numbered question sits on the page, in page pixels. */
 export type QuestionBox = { n: number; box: Box };
 
+/** One page of a multi-page sheet (a PDF), as the band of the tall sheet image it occupies. */
+export type PageBand = { top: number; height: number };
+
 export type Sheet = {
   id: string;
   title: string;
@@ -15,6 +18,8 @@ export type Sheet = {
   subject?: string;
   /** known for worksheets A-Note lays out itself */
   questions?: QuestionBox[];
+  /** set for multi-page sheets: the pages stacked top to bottom */
+  pages?: PageBand[];
 };
 
 /** Question boxes spanning the page width from [top, bottom] pairs. */
@@ -74,15 +79,27 @@ export function questionAt(sheet: Pick<Sheet, "questions">, box: Box): number | 
   return best?.n ?? null;
 }
 
-/** Builds a sheet from an image the learner picked. */
+/** The page a box sits on, for multi-page sheets; the whole sheet otherwise. */
+export function pageBandAt(sheet: Pick<Sheet, "pages" | "height">, box: Box): PageBand {
+  const middle = box.y + box.h / 2;
+  return sheet.pages?.find((p) => middle >= p.top && middle < p.top + p.height) ?? { top: 0, height: sheet.height };
+}
+
+/** Builds a sheet from an image or PDF the learner picked. */
 export async function sheetFromFile(file: File): Promise<Sheet> {
+  const title = file.name.replace(/\.[^.]+$/, "");
+  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+    const { renderPdf } = await import("@/lib/class/pdf");
+    const pdf = await renderPdf(file);
+    return { id: `upload-${Date.now().toString(36)}`, title, src: URL.createObjectURL(pdf.blob), width: pdf.width, height: pdf.height, pages: pdf.pages, local: true };
+  }
   const src = URL.createObjectURL(file);
   const img = new Image();
   img.src = src;
   await img.decode();
   return {
     id: `upload-${Date.now().toString(36)}`,
-    title: file.name.replace(/\.[^.]+$/, ""),
+    title,
     src,
     width: img.naturalWidth,
     height: img.naturalHeight,

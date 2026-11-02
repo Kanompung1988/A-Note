@@ -12,7 +12,8 @@ const Body = z.union([
       fileId: z.string().regex(FILE_ID),
       title: z.string().trim().min(1).max(120),
       width: z.number().int().positive().max(10000),
-      height: z.number().int().positive().max(10000),
+      height: z.number().int().positive().max(20000),
+      pages: z.array(z.object({ top: z.number().min(0), height: z.number().positive() })).max(8).optional(),
     }),
   }),
 ]);
@@ -28,8 +29,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/classes/[co
       if (!sample) return notFound("sheet_not_found");
       return Response.json(await addAssignment(classRoom.id, sample, { origin: "sample", key: SAMPLE_KEYS[sample.id] }));
     }
-    const { fileId, title, width, height } = body.upload;
-    return Response.json(await addAssignment(classRoom.id, { id: fileId, title, src: `/api/files/${fileId}`, width, height }, { origin: "upload" }));
+    const { fileId, title, width, height, pages } = body.upload;
+    return Response.json(await addAssignment(classRoom.id, { id: fileId, title, src: `/api/files/${fileId}`, width, height, pages }, { origin: "upload" }));
   } catch (error) {
     return errorResponse(error);
   }

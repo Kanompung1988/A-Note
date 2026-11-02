@@ -63,7 +63,9 @@ export function Toolbar({ choice, onChoose, canUndo, onUndo, canRedo, onRedo, ca
   const zoomAt = ZOOMS.indexOf(zoom);
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2 [scrollbar-width:none]">
+    <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
+      {/* tools scroll sideways on narrow screens; the actions on the right always stay in view */}
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
       <ToolButton label="Pen (P)" active={choice.tool === "pen"} onClick={() => pick("pen")}>
         <Icon>
           <path d="M4 20l4-1L19 8l-3-3L5 16z" />
@@ -176,13 +178,14 @@ export function Toolbar({ choice, onChoose, canUndo, onUndo, canRedo, onRedo, ca
       </ToolButton>
 
       <span className="ml-auto hidden shrink-0 pl-3 text-xs text-slate-400 2xl:block">Circle anything you don&apos;t get, then tap “Ask here”</span>
+      </div>
       {onCheck && (
         <button
           type="button"
           onClick={onCheck}
           disabled={!canCheck}
           title="A-Note reads your working and marks the first slip"
-          className="ml-auto flex h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-40 2xl:ml-3"
+          className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-40"
         >
           {checking ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -191,7 +194,8 @@ export function Toolbar({ choice, onChoose, canUndo, onUndo, canRedo, onRedo, ca
               <path d="M4 12.5l5 5L20 6.5" />
             </svg>
           )}
-          {checking ? "Checking…" : "Check my work"}
+          <span className="hidden sm:inline">{checking ? "Checking…" : "Check my work"}</span>
+          <span className="sm:hidden">{checking ? "…" : "Check"}</span>
         </button>
       )}
       {actions}

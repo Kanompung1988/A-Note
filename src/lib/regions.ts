@@ -14,11 +14,12 @@ export type ImageRegion = {
   maskHeight: number;
 };
 
-export function toPageSpace(region: ImageRegion, scale: number): PageRegion {
+/** `top` is where the sent image starts on the sheet (non-zero when only one page of a long sheet was sent). */
+export function toPageSpace(region: ImageRegion, scale: number, top = 0): PageRegion {
   return {
     box: {
       x: region.left / scale,
-      y: region.top / scale,
+      y: top + region.top / scale,
       w: (region.right - region.left) / scale,
       h: (region.bottom - region.top) / scale,
     },

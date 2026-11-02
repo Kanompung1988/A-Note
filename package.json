@@ -16,13 +16,15 @@
     "smoke:platform": "node scripts/smoke-platform.mjs",
     "seed": "node scripts/seed-demo.mjs",
     "smoke:tools": "node scripts/smoke-tools.mjs",
-    "smoke:handin": "node scripts/smoke-handin.mjs"
+    "smoke:handin": "node scripts/smoke-handin.mjs",
+    "smoke:pdf": "node scripts/smoke-pdf.mjs"
   },
   "dependencies": {
     "@meta-sam/parser": "^0.1.0",
     "@supabase/supabase-js": "^2.118.0",
     "motion": "14.1.1",
     "next": "16.4.3",
+    "pdfjs-dist": "^4.10.38",
     "perfect-freehand": "^1.2.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",

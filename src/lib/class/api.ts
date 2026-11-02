@@ -37,7 +37,11 @@ export const getDashboard = (code: string, teacherKey: string) =>
 export const assignSample = (code: string, teacherKey: string, sampleId: string) =>
   request<Assignment>(`/api/classes/${encodeURIComponent(code)}/assignments`, { method: "POST", teacherKey, body: json({ sampleId }) });
 
-export const assignUpload = (code: string, teacherKey: string, upload: { fileId: string; title: string; width: number; height: number }) =>
+export const assignUpload = (
+  code: string,
+  teacherKey: string,
+  upload: { fileId: string; title: string; width: number; height: number; pages?: { top: number; height: number }[] },
+) =>
   request<Assignment>(`/api/classes/${encodeURIComponent(code)}/assignments`, { method: "POST", teacherKey, body: json({ upload }) });
 
 export const unassign = (code: string, teacherKey: string, assignmentId: string) =>

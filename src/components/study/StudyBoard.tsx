@@ -116,14 +116,14 @@ export default function StudyBoard({
     }
     update(id, () => ({ capture }));
 
-    const { scale, width, height } = capture.pageImage;
+    const { scale, width, height, top } = capture.pageImage;
     segment({
       image: capture.page,
       size: { width, height },
-      box: { x: loop.x * scale, y: loop.y * scale, w: loop.w * scale, h: loop.h * scale },
+      box: { x: loop.x * scale, y: (loop.y - top) * scale, w: loop.w * scale, h: loop.h * scale },
     })
       .then(({ region }) => {
-        const pageRegion = region ? toPageSpace(region, scale) : null;
+        const pageRegion = region ? toPageSpace(region, scale, top) : null;
         update(id, () => ({ region: pageRegion }));
         track(id, { region: pageRegion });
       })
@@ -267,12 +267,12 @@ export default function StudyBoard({
               onClick={() => fileRef.current?.click()}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              Open a photo
+              Open a photo or PDF
             </button>
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf,.pdf"
               hidden
               onChange={(e) => {
                 void openFile(e.target.files?.[0]);

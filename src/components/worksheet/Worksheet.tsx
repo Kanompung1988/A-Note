@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { bounds, detectLoop, hitsStroke, type Box, type InkPoint, type Stroke } from "@/lib/ink/geometry";
 import { writingStrokes } from "@/lib/ink/lines";
 import { roughRing, tick } from "@/lib/ink/marks";
@@ -116,6 +116,18 @@ export default function Worksheet({ sheet, overlay, marks, initialStrokes, onAsk
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // When the page changes size (zoom, or the side panel opening) keep the same spot in view.
+  const lastWidthRef = useRef(0);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const previous = lastWidthRef.current;
+    lastWidthRef.current = width;
+    if (!el || !previous || !width || previous === width) return;
+    const ratio = width / previous;
+    el.scrollTop = (el.scrollTop + el.clientHeight / 2) * ratio - el.clientHeight / 2;
+    el.scrollLeft = (el.scrollLeft + el.clientWidth / 2) * ratio - el.clientWidth / 2;
+  }, [width]);
 
   // Committed ink. Text being edited is drawn by its text box instead.
   useEffect(() => {

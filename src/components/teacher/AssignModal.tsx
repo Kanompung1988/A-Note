@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { SheetCard } from "@/components/ui/SheetCard";
 import { assignSample, assignUpload, uploadImage } from "@/lib/class/api";
 import { prepareUpload } from "@/lib/class/images";
+import { isPdf, MAX_PDF_PAGES } from "@/lib/class/pdf";
 import { SAMPLE_SHEETS } from "@/lib/sheets";
 import type { Assignment } from "@/lib/store/types";
 import { CreateSheet } from "./CreateSheet";
@@ -43,10 +44,18 @@ export function AssignModal({ open, code, teacherKey, assigned, onClose, onAssig
 
   async function upload(file: File | undefined) {
     if (!file) return;
+    const title = file.name.replace(/\.[^.]+$/, "");
     await run("upload", async () => {
+      if (isPdf(file)) {
+        const { renderPdf } = await import("@/lib/class/pdf");
+        const pdf = await renderPdf(file);
+        if (pdf.truncated) window.alert(`This PDF has ${pdf.pageCount} pages. A-Note uses the first ${MAX_PDF_PAGES}.`);
+        const { id } = await uploadImage(code, teacherKey, pdf.blob, `${title}.jpg`);
+        return assignUpload(code, teacherKey, { fileId: id, title, width: pdf.width, height: pdf.height, pages: pdf.pages });
+      }
       const { blob, width, height } = await prepareUpload(file);
-      const { id } = await uploadImage(code, teacherKey, blob, `${file.name.replace(/\.[^.]+$/, "")}.jpg`);
-      return assignUpload(code, teacherKey, { fileId: id, title: file.name.replace(/\.[^.]+$/, ""), width, height });
+      const { id } = await uploadImage(code, teacherKey, blob, `${title}.jpg`);
+      return assignUpload(code, teacherKey, { fileId: id, title, width, height });
     });
   }
 
@@ -63,12 +72,12 @@ export function AssignModal({ open, code, teacherKey, assigned, onClose, onAssig
           disabled={busy !== null}
           className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
-          {busy === "upload" ? "Uploading…" : "Upload a photo"}
+          {busy === "upload" ? "Uploading…" : "Upload a photo or PDF"}
         </button>
         <input
           ref={fileRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
           hidden
           onChange={(e) => {
             void upload(e.target.files?.[0]);

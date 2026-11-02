@@ -1,4 +1,4 @@
-import type { Sheet } from "@/lib/sheets";
+import { pageBandAt, type PageBand, type Sheet } from "@/lib/sheets";
 import { expandBox, type Box, type Stroke } from "./geometry";
 import { drawStroke } from "./render";
 
@@ -12,11 +12,22 @@ export type Capture = {
   crop: string;
   /** the whole page with ink, downscaled, JPEG data URL */
   page: string;
-  /** size of `page` in pixels and how it maps back to page space */
-  pageImage: { width: number; height: number; scale: number };
+  /** size of `page` in pixels and how it maps back to page space (`top`: where it starts on the sheet) */
+  pageImage: { width: number; height: number; scale: number; top: number };
 };
 
 const PAGE_MAX_WIDTH = 1280;
+
+/** The page the box is on, downscaled: the whole sheet for one page, that page alone for a PDF. */
+function pageImage(full: HTMLCanvasElement, sheet: Sheet, box: Box): { canvas: HTMLCanvasElement; band: PageBand; scale: number } {
+  const band = pageBandAt(sheet, box);
+  const scale = Math.min(1, PAGE_MAX_WIDTH / sheet.width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sheet.width * scale);
+  canvas.height = Math.round(band.height * scale);
+  canvas.getContext("2d")!.drawImage(full, 0, band.top, sheet.width, band.height, 0, 0, canvas.width, canvas.height);
+  return { canvas, band, scale };
+}
 
 /** Renders the sheet with its ink and cuts out the circled region plus a page overview. */
 export async function captureRegion(sheet: Sheet, strokes: Stroke[], loop: Box): Promise<Capture> {
@@ -40,11 +51,7 @@ export async function captureRegion(sheet: Sheet, strokes: Stroke[], loop: Box):
   crop.height = Math.round(region.h);
   crop.getContext("2d")!.drawImage(full, region.x, region.y, region.w, region.h, 0, 0, crop.width, crop.height);
 
-  const scale = Math.min(1, PAGE_MAX_WIDTH / sheet.width);
-  const page = document.createElement("canvas");
-  page.width = Math.round(sheet.width * scale);
-  page.height = Math.round(sheet.height * scale);
-  page.getContext("2d")!.drawImage(full, 0, 0, page.width, page.height);
+  const { canvas: page, band, scale } = pageImage(full, sheet, loop);
 
   return {
     sheetId: sheet.id,
@@ -52,7 +59,7 @@ export async function captureRegion(sheet: Sheet, strokes: Stroke[], loop: Box):
     region,
     crop: crop.toDataURL("image/jpeg", 0.92),
     page: page.toDataURL("image/jpeg", 0.85),
-    pageImage: { width: page.width, height: page.height, scale },
+    pageImage: { width: page.width, height: page.height, scale, top: band.top },
   };
 }
 
@@ -81,11 +88,7 @@ export async function captureWork(sheet: Sheet, strokes: Stroke[], lines: Box[],
   ctx.drawImage(img, 0, 0, sheet.width, sheet.height);
   for (const stroke of strokes) drawStroke(ctx, stroke);
 
-  const page = document.createElement("canvas");
-  const scale = Math.min(1, PAGE_MAX_WIDTH / sheet.width);
-  page.width = Math.round(sheet.width * scale);
-  page.height = Math.round(sheet.height * scale);
-  page.getContext("2d")!.drawImage(full, 0, 0, page.width, page.height);
+  const { canvas: page } = pageImage(full, sheet, lines[lines.length - 1] ?? { x: 0, y: 0, w: 1, h: 1 });
 
   // Tags go on a copy, so the page overview shows the work as the learner wrote it.
   const radius = Math.max(16, sheet.width * 0.014);
