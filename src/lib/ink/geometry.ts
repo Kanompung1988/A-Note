@@ -3,7 +3,10 @@
 
 export type InkPoint = { x: number; y: number; p: number };
 
-export type Tool = "pen" | "highlighter";
+export type Tool = "pen" | "highlighter" | "text";
+
+/** Straight-edged pen marks drawn with the shape tool. */
+export type Shape = "line" | "arrow" | "rect" | "ellipse";
 
 export type Stroke = {
   id: string;
@@ -15,6 +18,11 @@ export type Stroke = {
   points: InkPoint[];
   /** set once the learner asked about the region this loop encloses */
   asked?: boolean;
+  /** pen strokes made with the shape tool: drawn with an even line, never treated as handwriting */
+  shape?: Shape;
+  /** text tool: the words, and the font size in page pixels; points are the box's top-left and bottom-right */
+  text?: string;
+  fontSize?: number;
 };
 
 export type Box = { x: number; y: number; w: number; h: number };
@@ -90,6 +98,10 @@ export function detectLoop(points: readonly InkPoint[], pageWidth: number): Box 
 
 /** Whether a stroke passes within `radius` of (x, y). Used by the stroke eraser. */
 export function hitsStroke(stroke: Stroke, x: number, y: number, radius: number): boolean {
+  if (stroke.tool === "text") {
+    const b = bounds(stroke.points);
+    return x >= b.x - radius && x <= b.x + b.w + radius && y >= b.y - radius && y <= b.y + b.h + radius;
+  }
   const reach = radius + stroke.size / 2;
   const { points } = stroke;
   if (points.length === 1) return Math.hypot(points[0].x - x, points[0].y - y) <= reach;

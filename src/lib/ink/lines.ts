@@ -18,9 +18,9 @@ function union(a: Box, b: Box): Box {
   return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
 }
 
-/** Pen strokes that are writing: not highlighter, not loops the learner already asked about. */
+/** What counts as working: pen writing and typed text, not highlighter, shapes or loops already asked about. */
 export function writingStrokes(strokes: readonly Stroke[]): Stroke[] {
-  return strokes.filter((s) => s.tool === "pen" && !s.asked && s.points.length > 0);
+  return strokes.filter((s) => s.points.length > 0 && (s.tool === "text" || (s.tool === "pen" && !s.asked && !s.shape)));
 }
 
 /**
