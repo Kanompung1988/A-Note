@@ -18,8 +18,10 @@ const notoThai = Noto_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "A-Note",
-  description: "Circle what you don't get. A-Note sees exactly what you circled and walks you through it, one hint at a time.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://a-note-five.vercel.app"),
+  title: "A-Note · the AI classroom on a worksheet",
+  description:
+    "Circle what you don't get and get it one hint at a time. Teachers write worksheets in a line, A-Note checks handwritten work, and a co-pilot plans tomorrow. Built on Meta's Muse Spark, Muse Wonder, Muse Image, SAM 3.1 and Voice Transcribe.",
 };
 
 export const viewport: Viewport = {

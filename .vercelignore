@@ -1,0 +1,9 @@
+# Never upload local secrets or data with a CLI deploy
+.env*
+!.env.example
+.data/
+.vercel/
+brand/drafts/
+smoke-shots/
+docs/
+eval/
