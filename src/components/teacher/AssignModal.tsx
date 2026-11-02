@@ -6,6 +6,7 @@ import { assignSample, assignUpload, uploadImage } from "@/lib/class/api";
 import { prepareUpload } from "@/lib/class/images";
 import { SAMPLE_SHEETS } from "@/lib/sheets";
 import type { Assignment } from "@/lib/store/types";
+import { CreateSheet } from "./CreateSheet";
 import { Modal } from "./Modal";
 
 type Props = {
@@ -17,9 +18,12 @@ type Props = {
   onAssigned: (assignment: Assignment) => void;
 };
 
-/** Pick a sample worksheet or upload a photo of your own. */
+type Tab = "create" | "samples";
+
+/** Write a worksheet with A-Note, pick a sample, or upload a photo of your own. */
 export function AssignModal({ open, code, teacherKey, assigned, onClose, onAssigned }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [tab, setTab] = useState<Tab>("create");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const assignedTitles = new Set(assigned.map((a) => a.sheet.title));
@@ -48,7 +52,7 @@ export function AssignModal({ open, code, teacherKey, assigned, onClose, onAssig
 
   return (
     <Modal open={open} onClose={onClose} wide>
-      <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-4">
         <div className="flex-1">
           <h2 className="text-xl font-semibold text-slate-900">Assign a worksheet</h2>
           <p className="mt-1 text-sm text-slate-500">Learners see it as soon as you assign it.</p>
@@ -57,7 +61,7 @@ export function AssignModal({ open, code, teacherKey, assigned, onClose, onAssig
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={busy !== null}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           {busy === "upload" ? "Uploading…" : "Upload a photo"}
         </button>
@@ -72,22 +76,58 @@ export function AssignModal({ open, code, teacherKey, assigned, onClose, onAssig
           }}
         />
       </div>
+
+      <div className="mt-5 flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+        <TabButton active={tab === "create"} onClick={() => setTab("create")}>
+          ✨ Create with A-Note
+        </TabButton>
+        <TabButton active={tab === "samples"} onClick={() => setTab("samples")}>
+          Sample worksheets
+        </TabButton>
+      </div>
+
       {error && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        {SAMPLE_SHEETS.map((sheet, i) => (
-          <SheetCard
-            key={sheet.id}
-            sheet={sheet}
-            index={i}
-            onClick={busy ? undefined : () => run(sheet.id, () => assignSample(code, teacherKey, sheet.id))}
-            footer={
-              <p className="mt-2 text-sm font-medium text-orange-600">
-                {busy === sheet.id ? "Assigning…" : assignedTitles.has(sheet.title) ? "Assigned · assign again" : "Assign"}
-              </p>
-            }
+
+      <div className="mt-5">
+        {tab === "create" ? (
+          <CreateSheet
+            code={code}
+            teacherKey={teacherKey}
+            onAssigned={(a) => {
+              onAssigned(a);
+              onClose();
+            }}
           />
-        ))}
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {SAMPLE_SHEETS.map((sheet, i) => (
+              <SheetCard
+                key={sheet.id}
+                sheet={sheet}
+                index={i}
+                onClick={busy ? undefined : () => run(sheet.id, () => assignSample(code, teacherKey, sheet.id))}
+                footer={
+                  <p className="mt-2 text-sm font-medium text-orange-600">
+                    {busy === sheet.id ? "Assigning…" : assignedTitles.has(sheet.title) ? "Assigned · assign again" : "Assign"}
+                  </p>
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
     </Modal>
+  );
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 rounded-lg px-3 py-2 transition ${active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+    >
+      {children}
+    </button>
   );
 }

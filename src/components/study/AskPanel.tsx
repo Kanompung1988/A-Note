@@ -23,12 +23,19 @@ export type Session = {
   solved: boolean;
   status: "thinking" | "ready" | "error";
   error?: string;
+  /** the worksheet question the loop is on, when the sheet knows its layout */
+  question: number | null;
+  /** the tutor had the teacher's answer key for this question */
+  grounded?: boolean;
+  /** the "Show me" picture from Muse Image */
+  picture?: { status: "drawing" | "ready" | "error"; image?: string };
 };
 
 type Props = {
   session: Session;
   onNextHint: () => void;
   onReply: (message: string) => void;
+  onPicture: () => void;
   onRetry: () => void;
   onClose: () => void;
 };
@@ -36,7 +43,7 @@ type Props = {
 const appear = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.25 } };
 
 /** Side panel (bottom sheet on narrow screens) for a question about a circled region. */
-export function AskPanel({ session, onNextHint, onReply, onRetry, onClose }: Props) {
+export function AskPanel({ session, onNextHint, onReply, onPicture, onRetry, onClose }: Props) {
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -48,7 +55,7 @@ export function AskPanel({ session, onNextHint, onReply, onRetry, onClose }: Pro
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [revealed, turns.length, status, solved]);
+  }, [revealed, turns.length, status, solved, session.picture?.status]);
 
   function send() {
     const text = draft.trim();
@@ -109,6 +116,41 @@ export function AskPanel({ session, onNextHint, onReply, onRetry, onClose }: Pro
           >
             Next hint
           </motion.button>
+        )}
+
+        {hints?.picture && !session.picture && !solved && (
+          <motion.button
+            {...appear}
+            type="button"
+            onClick={onPicture}
+            whileTap={{ scale: 0.97 }}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-300 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-50"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="3" />
+              <circle cx="9" cy="10" r="2" />
+              <path d="M21 16l-5-5-9 9" />
+            </svg>
+            Show me a picture
+          </motion.button>
+        )}
+
+        {session.picture && (
+          <motion.div {...appear} className="overflow-hidden rounded-2xl bg-violet-50 ring-1 ring-violet-200">
+            {session.picture.status === "ready" && session.picture.image ? (
+              <Image src={session.picture.image} alt="A picture of the idea" width={1024} height={768} unoptimized className="h-auto w-full" />
+            ) : session.picture.status === "drawing" ? (
+              <div className="grid aspect-[4/3] place-items-center">
+                <p className="flex items-center gap-2 text-sm text-violet-700">
+                  <span className="inline-block h-2 w-2 animate-ping rounded-full bg-violet-500" />
+                  Muse Image is drawing it…
+                </p>
+              </div>
+            ) : (
+              <p className="p-3 text-sm text-rose-700">Couldn&apos;t draw that just now.</p>
+            )}
+            <p className="px-3 py-2 text-xs text-violet-700">{hints?.picture}</p>
+          </motion.div>
         )}
 
         {hints && allHintsShown && !solved && (
@@ -222,6 +264,11 @@ function Badges({ session }: { session: Session }) {
       {region && (
         <motion.span {...appear} className="rounded-full bg-orange-50 px-2.5 py-1 text-orange-700 ring-1 ring-orange-200" title="Segmented by SAM 3.1">
           Outlined by SAM 3.1
+        </motion.span>
+      )}
+      {session.grounded && (
+        <motion.span {...appear} className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700 ring-1 ring-emerald-200" title="The tutor checks against your teacher's answer key, and never shows it">
+          Question {session.question} · teacher&apos;s key
         </motion.span>
       )}
     </div>

@@ -22,7 +22,8 @@ const json = (body: unknown) => JSON.stringify(body);
 export const createClass = (name: string, teacherName: string) =>
   request<{ code: string; name: string; teacherKey: string }>("/api/classes", { method: "POST", body: json({ name, teacherName }) });
 
-export const getClass = (code: string) => request<PublicClass>(`/api/classes/${encodeURIComponent(code)}`);
+export const getClass = (code: string, studentId?: string) =>
+  request<PublicClass>(`/api/classes/${encodeURIComponent(code)}${studentId ? `?student=${encodeURIComponent(studentId)}` : ""}`, { cache: "no-store" });
 
 export const joinClass = (code: string, name: string) =>
   request<{ student: Student; classRoom: PublicClass }>(`/api/classes/${encodeURIComponent(code)}/join`, {
@@ -58,13 +59,14 @@ export const classInsight = (code: string, teacherKey: string, assignmentId: str
     body: json({ assignmentId, page }),
   });
 
-export const recordAsk = (body: { code: string; studentId: string; assignmentId: string; loop: Box }) =>
+export const recordAsk = (body: { code: string; studentId: string; assignmentId: string; loop: Box; kind?: "ask" | "check" }) =>
   request<{ id: string }>("/api/asks", { method: "POST", body: json(body) });
 
 export type AskProgress = {
   region?: PageRegion | null;
   circled?: string;
   topic?: string;
+  slip?: string | null;
   hintsSeen?: number;
   replies?: number;
   solved?: boolean;
@@ -78,3 +80,42 @@ export async function transcribeWav(wav: Blob): Promise<string> {
   form.append("audio", wav, "question.wav");
   return (await request<{ text: string }>("/api/transcribe", { method: "POST", body: form })).text;
 }
+
+/** Reads a newline-delimited JSON stream, calling `onEvent` for each line as it arrives. */
+async function stream(url: string, init: RequestInit & { teacherKey?: string }, onEvent: (event: StreamEvent) => void): Promise<void> {
+  const headers = new Headers(init.headers);
+  if (init.teacherKey) headers.set("x-teacher-key", init.teacherKey);
+  headers.set("Content-Type", "application/json");
+  const res = await fetch(url, { ...init, headers });
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(typeof body.error === "string" ? body.error : `HTTP ${res.status}`);
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (value) buffer += value;
+    let newline = buffer.indexOf("\n");
+    while (newline >= 0) {
+      const line = buffer.slice(0, newline).trim();
+      buffer = buffer.slice(newline + 1);
+      if (line) onEvent(JSON.parse(line) as StreamEvent);
+      newline = buffer.indexOf("\n");
+    }
+    if (done) break;
+  }
+}
+
+export type StreamEvent = { type: string; [key: string]: unknown };
+
+export type WorksheetRequest = { topic: string; grade: string; count: number; language: string; picture: boolean };
+
+export const generateWorksheet = (code: string, teacherKey: string, body: WorksheetRequest, onEvent: (event: StreamEvent) => void) =>
+  stream(`/api/classes/${encodeURIComponent(code)}/generate`, { method: "POST", teacherKey, body: json(body) }, onEvent);
+
+export const publishDraft = (code: string, teacherKey: string, id: string) =>
+  request<Assignment>(`/api/classes/${encodeURIComponent(code)}/assignments`, { method: "PATCH", teacherKey, body: json({ id, publish: true }) });
+
+export const runCopilot = (code: string, teacherKey: string, body: { assignmentId: string; page: string }, onEvent: (event: StreamEvent) => void) =>
+  stream(`/api/classes/${encodeURIComponent(code)}/copilot`, { method: "POST", teacherKey, body: json(body) }, onEvent);

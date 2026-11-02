@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { SUBJECT_STYLES, type Sheet } from "@/lib/sheets";
+import { subjectStyle, type Sheet } from "@/lib/sheets";
 
 /** A worksheet thumbnail card. Renders as a button when `onClick` is set. */
 export function SheetCard({ sheet, onClick, footer, index = 0 }: { sheet: Sheet; onClick?: () => void; footer?: ReactNode; index?: number }) {
@@ -22,7 +22,7 @@ export function SheetCard({ sheet, onClick, footer, index = 0 }: { sheet: Sheet;
       </div>
       <div className="mt-3 flex items-start gap-2">
         <p className="flex-1 font-semibold leading-snug text-slate-900">{sheet.title}</p>
-        {sheet.subject && <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${SUBJECT_STYLES[sheet.subject]}`}>{sheet.subject}</span>}
+        {sheet.subject && <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${subjectStyle(sheet.subject)}`}>{sheet.subject}</span>}
       </div>
       {footer}
     </>

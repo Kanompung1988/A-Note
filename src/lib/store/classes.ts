@@ -3,12 +3,12 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { Box } from "@/lib/ink/geometry";
 import type { PageRegion } from "@/lib/regions";
 import type { Sheet } from "@/lib/sheets";
-import { read, write } from "./db";
-import type { AskRecord, Assignment, ClassRoom, Dashboard, PublicClass, Student } from "./types";
+import { db } from "./db";
+import type { AskRecord, Assignment, ClassRoom, CopilotRun, Dashboard, PublicAssignment, PublicClass, Student } from "./types";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-function id(): string {
+export function newId(): string {
   return randomBytes(9).toString("base64url");
 }
 
@@ -20,12 +20,8 @@ export function normalizeCode(code: string): string {
   return code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-function newCode(taken: Set<string>): string {
-  for (;;) {
-    const bytes = randomBytes(6);
-    const code = Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
-    if (!taken.has(code)) return code;
-  }
+function randomCode(): string {
+  return Array.from(randomBytes(6), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
 }
 
 function sameSecret(a: string, b: string): boolean {
@@ -34,139 +30,171 @@ function sameSecret(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-export function createClass(input: { name: string; teacherName: string }): Promise<ClassRoom> {
-  return write((data) => {
-    const classRoom: ClassRoom = {
-      id: id(),
-      code: newCode(new Set(data.classes.map((c) => c.code))),
-      name: input.name,
-      teacherName: input.teacherName,
-      teacherKey: randomBytes(24).toString("base64url"),
-      createdAt: now(),
-    };
-    data.classes.push(classRoom);
-    return classRoom;
+async function classByCode(code: string): Promise<ClassRoom | null> {
+  const wanted = normalizeCode(code);
+  if (!wanted) return null;
+  return (await db().find<ClassRoom>("classes", { code: wanted }))[0] ?? null;
+}
+
+export async function createClass(input: { name: string; teacherName: string }): Promise<ClassRoom> {
+  let code = randomCode();
+  while (await classByCode(code)) code = randomCode();
+  return db().put<ClassRoom>("classes", {
+    id: newId(),
+    code,
+    name: input.name,
+    teacherName: input.teacherName,
+    teacherKey: randomBytes(24).toString("base64url"),
+    createdAt: now(),
   });
 }
 
-export function publicClass(code: string): Promise<PublicClass | null> {
-  const wanted = normalizeCode(code);
-  return read((data) => {
-    const c = data.classes.find((x) => x.code === wanted);
-    if (!c) return null;
-    return {
-      code: c.code,
-      name: c.name,
-      teacherName: c.teacherName,
-      assignments: data.assignments.filter((a) => a.classId === c.id),
-    };
-  });
+/** Whether `studentId` should see this assignment. */
+function visibleTo(assignment: Assignment, studentId: string | null): boolean {
+  if (assignment.draft) return false;
+  return !assignment.studentIds || (studentId !== null && assignment.studentIds.includes(studentId));
+}
+
+export function toPublic(assignment: Assignment, studentId: string | null): PublicAssignment {
+  const { key: _key, studentIds, draft: _draft, ...rest } = assignment;
+  void _key;
+  void _draft;
+  return { ...rest, forYou: Boolean(studentIds && studentId && studentIds.includes(studentId)) };
+}
+
+/** What a learner sees: whole-class worksheets, plus the ones made for them. Never answer keys. */
+export async function publicClass(code: string, studentId: string | null = null): Promise<PublicClass | null> {
+  const c = await classByCode(code);
+  if (!c) return null;
+  const assignments = await db().find<Assignment>("assignments", { classId: c.id });
+  return {
+    code: c.code,
+    name: c.name,
+    teacherName: c.teacherName,
+    assignments: assignments.filter((a) => visibleTo(a, studentId)).map((a) => toPublic(a, studentId)),
+  };
 }
 
 /** The class when `teacherKey` matches it, otherwise null. */
-export function teacherClass(code: string, teacherKey: string | null): Promise<ClassRoom | null> {
-  const wanted = normalizeCode(code);
-  return read((data) => {
-    const c = data.classes.find((x) => x.code === wanted);
-    return c && teacherKey && sameSecret(c.teacherKey, teacherKey) ? c : null;
+export async function teacherClass(code: string, teacherKey: string | null): Promise<ClassRoom | null> {
+  const c = await classByCode(code);
+  return c && teacherKey && sameSecret(c.teacherKey, teacherKey) ? c : null;
+}
+
+export async function getAssignment(classId: string, assignmentId: string): Promise<Assignment | null> {
+  const a = await db().get<Assignment>("assignments", assignmentId);
+  return a && a.classId === classId ? a : null;
+}
+
+export function addAssignment(
+  classId: string,
+  sheet: Sheet,
+  extra: Pick<Assignment, "origin" | "studentIds" | "note" | "key" | "draft"> = {},
+): Promise<Assignment> {
+  const id = newId();
+  return db().put<Assignment>("assignments", {
+    id,
+    classId,
+    sheet: { ...sheet, id: `assignment-${id}`, local: false },
+    createdAt: now(),
+    ...extra,
   });
 }
 
-export function addAssignment(classId: string, sheet: Sheet): Promise<Assignment> {
-  return write((data) => {
-    const assignment: Assignment = { id: id(), classId, sheet: { ...sheet, id: `assignment-${id()}`, local: false }, createdAt: now() };
-    data.assignments.push(assignment);
-    return assignment;
-  });
+/** Makes a reviewed draft visible to learners. */
+export async function publishAssignment(classId: string, assignmentId: string): Promise<Assignment | null> {
+  const a = await getAssignment(classId, assignmentId);
+  if (!a) return null;
+  return db().put<Assignment>("assignments", { ...a, draft: false });
 }
 
-export function removeAssignment(classId: string, assignmentId: string): Promise<boolean> {
-  return write((data) => {
-    const before = data.assignments.length;
-    data.assignments = data.assignments.filter((a) => !(a.classId === classId && a.id === assignmentId));
-    data.asks = data.asks.filter((a) => a.assignmentId !== assignmentId);
-    return data.assignments.length < before;
-  });
+export async function removeAssignment(classId: string, assignmentId: string): Promise<boolean> {
+  if (!(await getAssignment(classId, assignmentId))) return false;
+  await db().remove("asks", { classId, assignmentId });
+  await db().remove("assignments", { id: assignmentId });
+  return true;
 }
 
 /** Joins a class by name. Joining again with the same name returns the same learner. */
-export function joinClass(code: string, name: string): Promise<{ student: Student; classRoom: PublicClass } | null> {
-  const wanted = normalizeCode(code);
-  return write((data) => {
-    const c = data.classes.find((x) => x.code === wanted);
-    if (!c) return null;
-    const key = name.trim().toLowerCase();
-    let student = data.students.find((s) => s.classId === c.id && s.name.toLowerCase() === key);
-    if (!student) {
-      student = { id: id(), classId: c.id, name: name.trim(), joinedAt: now(), lastSeenAt: now() };
-      data.students.push(student);
-    } else {
-      student.lastSeenAt = now();
-    }
-    return {
-      student,
-      classRoom: { code: c.code, name: c.name, teacherName: c.teacherName, assignments: data.assignments.filter((a) => a.classId === c.id) },
-    };
+export async function joinClass(code: string, name: string): Promise<{ student: Student; classRoom: PublicClass } | null> {
+  const c = await classByCode(code);
+  if (!c) return null;
+  const key = name.trim().toLowerCase();
+  const students = await db().find<Student>("students", { classId: c.id });
+  let student = students.find((s) => s.name.toLowerCase() === key);
+  if (student) student.lastSeenAt = now();
+  else student = { id: newId(), classId: c.id, name: name.trim(), joinedAt: now(), lastSeenAt: now() };
+  await db().put("students", student);
+  const classRoom = await publicClass(c.code, student.id);
+  return classRoom && { student, classRoom };
+}
+
+async function touchStudent(studentId: string) {
+  const student = await db().get<Student>("students", studentId);
+  if (student) await db().put("students", { ...student, lastSeenAt: now() });
+}
+
+export async function learnerContext(input: { code: string; studentId: string; assignmentId: string }) {
+  const c = await classByCode(input.code);
+  if (!c) return null;
+  const [student, assignment] = await Promise.all([db().get<Student>("students", input.studentId), getAssignment(c.id, input.assignmentId)]);
+  if (!student || student.classId !== c.id || !assignment || !visibleTo(assignment, student.id)) return null;
+  return { classRoom: c, student, assignment };
+}
+
+export async function createAsk(input: { code: string; studentId: string; assignmentId: string; loop: Box; kind?: AskRecord["kind"] }): Promise<AskRecord | null> {
+  const ctx = await learnerContext(input);
+  if (!ctx) return null;
+  void touchStudent(ctx.student.id);
+  return db().put<AskRecord>("asks", {
+    id: newId(),
+    classId: ctx.classRoom.id,
+    assignmentId: ctx.assignment.id,
+    studentId: ctx.student.id,
+    kind: input.kind ?? "ask",
+    loop: input.loop,
+    region: null,
+    circled: null,
+    topic: null,
+    slip: null,
+    hintsSeen: 0,
+    replies: 0,
+    solved: false,
+    createdAt: now(),
+    updatedAt: now(),
   });
 }
 
-export function createAsk(input: { code: string; studentId: string; assignmentId: string; loop: Box }): Promise<AskRecord | null> {
-  const wanted = normalizeCode(input.code);
-  return write((data) => {
-    const c = data.classes.find((x) => x.code === wanted);
-    const student = c && data.students.find((s) => s.id === input.studentId && s.classId === c.id);
-    const assignment = c && data.assignments.find((a) => a.id === input.assignmentId && a.classId === c.id);
-    if (!c || !student || !assignment) return null;
-    student.lastSeenAt = now();
-    const ask: AskRecord = {
-      id: id(),
-      classId: c.id,
-      assignmentId: assignment.id,
-      studentId: student.id,
-      loop: input.loop,
-      region: null,
-      circled: null,
-      topic: null,
-      hintsSeen: 0,
-      replies: 0,
-      solved: false,
-      createdAt: now(),
-      updatedAt: now(),
-    };
-    data.asks.push(ask);
-    return ask;
-  });
-}
-
-export type AskPatch = Partial<Pick<AskRecord, "circled" | "topic" | "hintsSeen" | "replies" | "solved">> & { region?: PageRegion | null };
+export type AskPatch = Partial<Pick<AskRecord, "circled" | "topic" | "slip" | "hintsSeen" | "replies" | "solved">> & { region?: PageRegion | null };
 
 /** Updates an ask that belongs to `studentId`. `solved` only ever turns on. */
-export function updateAsk(askId: string, studentId: string, patch: AskPatch): Promise<AskRecord | null> {
-  return write((data) => {
-    const ask = data.asks.find((a) => a.id === askId && a.studentId === studentId);
-    if (!ask) return null;
-    if (patch.region !== undefined) ask.region = patch.region;
-    if (patch.circled !== undefined) ask.circled = patch.circled;
-    if (patch.topic !== undefined) ask.topic = patch.topic;
-    if (patch.hintsSeen !== undefined) ask.hintsSeen = Math.max(ask.hintsSeen, patch.hintsSeen);
-    if (patch.replies !== undefined) ask.replies = Math.max(ask.replies, patch.replies);
-    if (patch.solved) ask.solved = true;
-    ask.updatedAt = now();
-    const student = data.students.find((s) => s.id === studentId);
-    if (student) student.lastSeenAt = now();
-    return ask;
-  });
+export async function updateAsk(askId: string, studentId: string, patch: AskPatch): Promise<AskRecord | null> {
+  const ask = await db().get<AskRecord>("asks", askId);
+  if (!ask || ask.studentId !== studentId) return null;
+  if (patch.region !== undefined) ask.region = patch.region;
+  if (patch.circled !== undefined) ask.circled = patch.circled;
+  if (patch.topic !== undefined) ask.topic = patch.topic;
+  if (patch.slip !== undefined) ask.slip = patch.slip;
+  if (patch.hintsSeen !== undefined) ask.hintsSeen = Math.max(ask.hintsSeen, patch.hintsSeen);
+  if (patch.replies !== undefined) ask.replies = Math.max(ask.replies, patch.replies);
+  if (patch.solved) ask.solved = true;
+  ask.updatedAt = now();
+  void touchStudent(studentId);
+  return db().put("asks", ask);
 }
 
-export function dashboard(classRoom: ClassRoom): Promise<Dashboard> {
-  return read((data) => {
-    const { teacherKey: _secret, ...safe } = classRoom;
-    void _secret;
-    return {
-      classRoom: safe,
-      assignments: data.assignments.filter((a) => a.classId === classRoom.id),
-      students: data.students.filter((s) => s.classId === classRoom.id),
-      asks: data.asks.filter((a) => a.classId === classRoom.id),
-    };
-  });
+export async function dashboard(classRoom: ClassRoom): Promise<Dashboard> {
+  const { teacherKey: _secret, ...safe } = classRoom;
+  void _secret;
+  const [assignments, students, asks, runs] = await Promise.all([
+    db().find<Assignment>("assignments", { classId: classRoom.id }),
+    db().find<Student>("students", { classId: classRoom.id }),
+    db().find<AskRecord>("asks", { classId: classRoom.id }),
+    db().find<CopilotRun>("runs", { classId: classRoom.id }),
+  ]);
+  return { classRoom: safe, assignments, students, asks, runs: runs.slice(-5) };
+}
+
+export function saveRun(run: CopilotRun): Promise<CopilotRun> {
+  return db().put("runs", run);
 }

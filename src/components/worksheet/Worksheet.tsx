@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { detectLoop, hitsStroke, type Box, type InkPoint, type Stroke, type Tool } from "@/lib/ink/geometry";
+import { writingStrokes } from "@/lib/ink/lines";
+import { roughRing, tick } from "@/lib/ink/marks";
 import { clearCanvas, drawStroke, fitCanvas } from "@/lib/ink/render";
 import { loadStrokes, newId, saveStrokes } from "@/lib/ink/storage";
 import { regionTransform, type PageRegion } from "@/lib/regions";
@@ -20,18 +22,34 @@ type LoopPrompt = { strokeId: string; box: Box };
 export type BoardOverlay = {
   loop: Box;
   region: PageRegion | null;
-  note: { label: string; text: string; tone: "thinking" | "hint" | "done" } | null;
+  note: { label: string; text: string; tone: "thinking" | "hint" | "slip" | "done" } | null;
+};
+
+type Note = NonNullable<BoardOverlay["note"]>;
+
+/** What A-Note marks on the page after checking a block of working. */
+export type WorkMarks = {
+  id: string;
+  status: "checking" | "done";
+  lines: { box: Box; state: "checking" | "ok" | "slip" | "plain" }[];
+  allCorrect: boolean;
+  note: Note | null;
+  /** where the note pins */
+  anchor: Box;
 };
 
 type Props = {
   sheet: Sheet;
   overlay?: BoardOverlay | null;
+  marks?: WorkMarks | null;
   /** called when the learner taps "Ask here" on a loop; gets the strokes with that loop marked as asked */
   onAsk: (strokes: Stroke[], loop: Box) => void;
+  /** "Check my work": gets every stroke on the page */
+  onCheck?: (strokes: Stroke[]) => void;
 };
 
 /** A worksheet you can write on. Pen and mouse draw, fingers scroll, and a loop offers to ask. */
-export default function Worksheet({ sheet, overlay, onAsk }: Props) {
+export default function Worksheet({ sheet, overlay, marks, onAsk, onCheck }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const baseRef = useRef<HTMLCanvasElement>(null);
   const liveRef = useRef<HTMLCanvasElement>(null);
@@ -236,6 +254,9 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
         onUndo={undo}
         canClear={strokes.length > 0}
         onClear={clearPage}
+        onCheck={onCheck && (() => onCheck(strokes))}
+        canCheck={writingStrokes(strokes).length > 0 && marks?.status !== "checking"}
+        checking={marks?.status === "checking"}
       />
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-slate-100 py-4">
         {mounted && (
@@ -251,6 +272,7 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
             />
             {overlay?.region && <RegionHighlight region={overlay.region} sheet={sheet} width={width} height={height} />}
             <canvas ref={baseRef} className="pointer-events-none absolute inset-0" />
+            {marks && <MarksLayer key={marks.id} marks={marks} sheet={sheet} width={width} height={height} />}
             <canvas
               ref={liveRef}
               className="absolute inset-0 select-none"
@@ -261,7 +283,8 @@ export default function Worksheet({ sheet, overlay, onAsk }: Props) {
               onPointerCancel={onPointerCancel}
             />
             <AnimatePresence>
-              {overlay?.note && <BoardNote key="note" overlay={overlay} note={overlay.note} scale={scale} pageWidth={width} />}
+              {overlay?.note && <BoardNote key="note" anchor={overlay.region?.box ?? overlay.loop} note={overlay.note} scale={scale} pageWidth={width} />}
+              {!overlay?.note && marks?.note && <BoardNote key={`marks-${marks.id}`} anchor={marks.anchor} note={marks.note} scale={scale} pageWidth={width} />}
             </AnimatePresence>
             <AnimatePresence>
               {prompt && (
@@ -296,14 +319,92 @@ function RegionHighlight({ region, sheet, width, height }: { region: PageRegion;
   );
 }
 
+/** Red pen and ticks over the learner's working, drawn stroke by stroke like a teacher marking. */
+function MarksLayer({ marks, sheet, width, height }: { marks: WorkMarks; sheet: Sheet; width: number; height: number }) {
+  const pen = sheet.width * 0.0042;
+  const size = Math.max(28, sheet.width * 0.028);
+  const last = marks.lines[marks.lines.length - 1]?.box;
+  return (
+    <svg className="pointer-events-none absolute inset-0" width={width} height={height} viewBox={`0 0 ${sheet.width} ${sheet.height}`} aria-hidden>
+      {marks.lines.map((line, i) => {
+        const { box } = line;
+        if (line.state === "checking") {
+          return (
+            <motion.rect
+              key={i}
+              x={box.x - 10}
+              y={box.y - 8}
+              width={box.w + 20}
+              height={box.h + 16}
+              rx={12}
+              fill="#dbeafe"
+              stroke="#60a5fa"
+              strokeWidth={pen * 0.6}
+              strokeDasharray="10 8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.15, 0.55, 0.15] }}
+              transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.18 }}
+            />
+          );
+        }
+        if (line.state === "slip") {
+          return (
+            <motion.path
+              key={i}
+              d={roughRing(box, i + 3, sheet.width * 0.012)}
+              fill="none"
+              stroke="#dc2626"
+              strokeWidth={pen}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              initial={{ pathLength: 0, opacity: 0.9 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.7, ease: "easeInOut" }}
+            />
+          );
+        }
+        if (line.state === "ok") {
+          return (
+            <motion.path
+              key={i}
+              d={tick(Math.min(box.x + box.w + size * 0.6, sheet.width - size * 1.2), box.y + box.h / 2 - size * 0.2, size)}
+              fill="none"
+              stroke="#16a34a"
+              strokeWidth={pen}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.35, delay: i * 0.18, ease: "easeOut" }}
+            />
+          );
+        }
+        return null;
+      })}
+      {marks.allCorrect && last && (
+        <motion.path
+          d={roughRing({ x: last.x - 6, y: last.y - 4, w: last.w + 12, h: last.h + 8 }, 7, sheet.width * 0.01)}
+          fill="none"
+          stroke="#16a34a"
+          strokeWidth={pen}
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.8, delay: marks.lines.length * 0.18 }}
+        />
+      )}
+    </svg>
+  );
+}
+
 const NOTE_TONES = {
   thinking: "bg-white ring-sky-200",
   hint: "bg-amber-50 ring-amber-300",
+  slip: "bg-rose-50 ring-rose-300",
   done: "bg-emerald-50 ring-emerald-300",
 };
 
-function BoardNote({ overlay, note, scale, pageWidth }: { overlay: BoardOverlay; note: NonNullable<BoardOverlay["note"]>; scale: number; pageWidth: number }) {
-  const anchor = overlay.region?.box ?? overlay.loop;
+function BoardNote({ anchor, note, scale, pageWidth }: { anchor: Box; note: Note; scale: number; pageWidth: number }) {
   const right = (anchor.x + anchor.w) * scale + 16;
   const fitsRight = right + NOTE_WIDTH <= pageWidth - 8;
   const left = fitsRight ? right : Math.max(8, Math.min(anchor.x * scale, pageWidth - NOTE_WIDTH - 8));

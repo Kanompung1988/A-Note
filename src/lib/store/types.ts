@@ -13,12 +13,37 @@ export type ClassRoom = {
   createdAt: string;
 };
 
+/** The teacher's answer for one question. Only the server, the tutor and the teacher ever see it. */
+export type KeyItem = {
+  /** the question's number on the page */
+  n: number;
+  prompt: string;
+  answer: string;
+  steps: string[];
+  skill: string;
+  /** true when an independent solve reached the same answer, null when not checked */
+  verified: boolean | null;
+};
+
+export type AnswerKey = { items: KeyItem[] };
+
 export type Assignment = {
   id: string;
   classId: string;
   sheet: Sheet;
   createdAt: string;
+  origin?: "sample" | "upload" | "generated" | "copilot";
+  /** only these learners see it; absent means the whole class */
+  studentIds?: string[];
+  /** shown to the learners it was made for */
+  note?: string;
+  key?: AnswerKey;
+  /** written by A-Note and waiting for the teacher to review it; learners cannot see drafts */
+  draft?: boolean;
 };
+
+/** An assignment as a learner receives it: no answer key, no list of other learners. */
+export type PublicAssignment = Omit<Assignment, "key" | "studentIds" | "draft"> & { forYou: boolean };
 
 export type Student = {
   id: string;
@@ -28,16 +53,19 @@ export type Student = {
   lastSeenAt: string;
 };
 
-/** One "Ask here": where a learner circled, what the tutor saw, and how it went. */
+/** One "Ask here" or "Check my work": where on the page, what the tutor saw, and how it went. */
 export type AskRecord = {
   id: string;
   classId: string;
   assignmentId: string;
   studentId: string;
+  kind?: "ask" | "check";
   loop: Box;
   region: PageRegion | null;
   circled: string | null;
   topic: string | null;
+  /** the mistake the tutor found when checking work */
+  slip?: string | null;
   hintsSeen: number;
   replies: number;
   solved: boolean;
@@ -45,11 +73,40 @@ export type AskRecord = {
   updatedAt: string;
 };
 
-export type PublicClass = Pick<ClassRoom, "code" | "name" | "teacherName"> & { assignments: Assignment[] };
+export type RunStep = {
+  at: string;
+  kind: "think" | "tool" | "check" | "done" | "error";
+  title: string;
+  detail?: string;
+};
+
+export type LessonPlan = {
+  headline: string;
+  warmup: string;
+  groups: { name: string; studentNames: string[]; focus: string; assignmentId: string | null }[];
+  reteach: string;
+  exit_ticket: string;
+};
+
+/** One run of the class co-pilot: its visible trace and what it made. */
+export type CopilotRun = {
+  id: string;
+  classId: string;
+  assignmentId: string;
+  status: "running" | "done" | "failed";
+  steps: RunStep[];
+  plan: LessonPlan | null;
+  createdAssignmentIds: string[];
+  createdAt: string;
+  finishedAt: string | null;
+};
+
+export type PublicClass = Pick<ClassRoom, "code" | "name" | "teacherName"> & { assignments: PublicAssignment[] };
 
 export type Dashboard = {
   classRoom: Omit<ClassRoom, "teacherKey">;
   assignments: Assignment[];
   students: Student[];
   asks: AskRecord[];
+  runs: CopilotRun[];
 };

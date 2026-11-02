@@ -40,3 +40,14 @@ export function errorResponse(error: unknown): Response {
   console.error(error);
   return Response.json({ error: "server_error" }, { status: 500 });
 }
+
+/** Which worksheet and question a tutor call is about, so the server can look up the answer key. */
+export const keyContext = z
+  .object({
+    question: z.number().int().positive().max(200).nullable(),
+    source: z.union([
+      z.object({ code: z.string().min(1).max(20), studentId: z.string().min(1).max(40), assignmentId: z.string().min(1).max(40) }),
+      z.object({ sampleId: z.string().min(1).max(60) }),
+    ]),
+  })
+  .optional();

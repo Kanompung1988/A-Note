@@ -6,7 +6,12 @@ import "server-only";
 const BASE_URL = process.env.META_API_BASE_URL ?? "https://api.meta.ai/v1";
 
 export const MODELS = {
+  /** tutoring, checking work, writing worksheets and running the class co-pilot */
   tutor: "muse-spark-1.3",
+  /** a second, stronger model solves every generated question on its own to verify the answer key */
+  verify: "muse-wonder-1.0",
+  /** pictures for "Show me" hints and generated worksheets */
+  image: "muse-image-1.0",
   segment: "sam-3.1",
   transcribe: "muse-voice-transcribe-1.0",
 } as const;
@@ -40,9 +45,19 @@ export async function metaFetch(path: string, init: RequestInit = {}): Promise<R
   return res;
 }
 
+export type FunctionTool = {
+  type: "function";
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  strict?: boolean;
+};
+
 export type ResponseRequest = {
   model: string;
   input: unknown;
+  tools?: FunctionTool[];
+  parallel_tool_calls?: boolean;
   instructions?: string;
   reasoning?: { effort: ReasoningEffort };
   max_output_tokens?: number;
@@ -57,11 +72,20 @@ export type ResponseUsage = {
   output_tokens_details?: { reasoning_tokens?: number };
 };
 
+export type OutputItem = {
+  type: string;
+  content?: { type: string; text?: string }[];
+  /** function_call items */
+  name?: string;
+  arguments?: string;
+  call_id?: string;
+};
+
 export type MetaResponse = {
   id: string;
   model: string;
   output_text?: string;
-  output?: { type: string; content?: { type: string; text?: string }[] }[];
+  output?: OutputItem[];
   usage?: ResponseUsage;
 };
 
@@ -78,6 +102,34 @@ export function outputText(response: MetaResponse): string {
     .filter((part) => part.type === "output_text" && part.text)
     .map((part) => part.text)
     .join("");
+}
+
+export type FunctionCall = { name: string; arguments: string; callId: string };
+
+export function functionCalls(response: MetaResponse): FunctionCall[] {
+  return (response.output ?? [])
+    .filter((item) => item.type === "function_call" && item.name && item.call_id)
+    .map((item) => ({ name: item.name!, arguments: item.arguments ?? "{}", callId: item.call_id! }));
+}
+
+/** Muse Image: one picture as a data URL. Built-in search and shell tools stay off. */
+export async function createImage(prompt: string, size = "1024x768", signal?: AbortSignal): Promise<{ dataUrl: string; bytes: Uint8Array; type: string }> {
+  const res = await metaFetch("/images/generations", {
+    method: "POST",
+    signal,
+    body: JSON.stringify({
+      model: MODELS.image,
+      prompt,
+      size,
+      n: 1,
+      output_format: "jpeg",
+      tool_enablement: { enable_image_search: false, enable_web_search: false, enable_shell: false },
+    }),
+  });
+  const json: { data?: { b64_json?: string }[] } = await res.json();
+  const b64 = json.data?.[0]?.b64_json;
+  if (!b64) throw new MetaApiError(502, "image response had no data");
+  return { dataUrl: `data:image/jpeg;base64,${b64}`, bytes: new Uint8Array(Buffer.from(b64, "base64")), type: "image/jpeg" };
 }
 
 export async function listModels(): Promise<string[]> {

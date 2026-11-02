@@ -5,13 +5,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { TopBar } from "@/components/ui/TopBar";
-import { classInsight, getDashboard, unassign, type ClassInsight, type Dashboard } from "@/lib/class/api";
+import { classInsight, getDashboard, runCopilot, unassign, type ClassInsight, type Dashboard } from "@/lib/class/api";
 import { clusterAsks } from "@/lib/class/cluster";
 import { formatCode, teacherSeat } from "@/lib/class/identity";
 import { renderSpots } from "@/lib/class/images";
-import { SUBJECT_STYLES } from "@/lib/sheets";
+import { subjectStyle } from "@/lib/sheets";
+import type { Assignment, CopilotRun, RunStep } from "@/lib/store/types";
 import { isLive, timeAgo } from "@/lib/time";
 import { AssignModal } from "./AssignModal";
+import { CopilotPanel } from "./CopilotPanel";
 import { ClassHeatmap } from "./ClassHeatmap";
 import { JoinCodeModal } from "./JoinCodeModal";
 import { SpotsPanel } from "./SpotsPanel";
@@ -19,6 +21,9 @@ import { SpotsPanel } from "./SpotsPanel";
 const POLL_MS = 4000;
 
 type InsightState = { insight: ClassInsight; at: string };
+
+/** A co-pilot run in progress in this tab (saved runs come back with the dashboard data). */
+type LiveRun = { assignmentId: string; steps: RunStep[]; made: Assignment[]; run: CopilotRun | null; running: boolean; error: string | null };
 
 export default function TeacherDashboard({ code }: { code: string }) {
   const seat = teacherSeat(code);
@@ -33,6 +38,7 @@ export default function TeacherDashboard({ code }: { code: string }) {
   const [assignOpen, setAssignOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [live, setLive] = useState<LiveRun | null>(null);
 
   // Live: poll the class while the dashboard is open.
   useEffect(() => {
@@ -55,9 +61,13 @@ export default function TeacherDashboard({ code }: { code: string }) {
     };
   }, [code, teacherKey]);
 
-  const assignments = useMemo(() => data?.assignments ?? [], [data]);
-  const selected = assignments.find((a) => a.id === selectedId) ?? assignments[assignments.length - 1] ?? null;
-  const asks = useMemo(() => (data && selected ? data.asks.filter((a) => a.assignmentId === selected.id) : []), [data, selected]);
+  const assignments = useMemo(() => (data?.assignments ?? []).filter((a) => !a.draft), [data]);
+  // the class's own worksheets first; practice the co-pilot made for small groups is listed after
+  const selected = assignments.find((a) => a.id === selectedId) ?? assignments.filter((a) => !a.studentIds).at(-1) ?? assignments.at(-1) ?? null;
+  const allAsks = useMemo(() => (data && selected ? data.asks.filter((a) => a.assignmentId === selected.id) : []), [data, selected]);
+  // circles feed the heatmap; checked work is counted per learner
+  const asks = useMemo(() => allAsks.filter((a) => a.kind !== "check"), [allAsks]);
+  const checks = useMemo(() => allAsks.filter((a) => a.kind === "check"), [allAsks]);
   const clusters = useMemo(() => clusterAsks(asks), [asks]);
 
   if (!seat) {
@@ -76,6 +86,9 @@ export default function TeacherDashboard({ code }: { code: string }) {
   }
 
   const learners = data.students;
+  const savedRun = selected ? [...data.runs].reverse().find((r) => r.assignmentId === selected.id && r.status !== "running") ?? null : null;
+  const shownRun = live && live.assignmentId === selected?.id ? live : null;
+  const madeBy = (run: CopilotRun | null) => (run ? data.assignments.filter((a) => run.createdAssignmentIds.includes(a.id)) : []);
   const solvedCount = asks.filter((a) => a.solved).length;
   const askingLearners = new Set(asks.map((a) => a.studentId)).size;
 
@@ -91,6 +104,30 @@ export default function TeacherDashboard({ code }: { code: string }) {
       setInsightError(e instanceof Error && e.message === "rate_limited" ? "One moment, then try again." : "A-Note couldn't read the class just now.");
     } finally {
       setThinking(false);
+    }
+  }
+
+  async function copilot() {
+    if (!selected || !seat) return;
+    const assignmentId = selected.id;
+    setLive({ assignmentId, steps: [], made: [], run: null, running: true, error: null });
+    const patch = (change: (l: LiveRun) => Partial<LiveRun>) => setLive((l) => (l && l.assignmentId === assignmentId ? { ...l, ...change(l) } : l));
+    try {
+      const page = await renderSpots(selected.sheet, clusters);
+      await runCopilot(code, seat.teacherKey, { assignmentId, page }, (event) => {
+        if (event.type === "step") patch((l) => ({ steps: [...l.steps, event.step as RunStep] }));
+        if (event.type === "assignment") {
+          const made = event.assignment as Assignment;
+          patch((l) => ({ made: [...l.made, made] }));
+          setData((d) => (d ? { ...d, assignments: [...d.assignments, made] } : d));
+        }
+        if (event.type === "done") patch(() => ({ run: event.run as CopilotRun }));
+        if (event.type === "error") patch(() => ({ error: "The co-pilot hit a problem. What it finished is kept." }));
+      });
+    } catch (e) {
+      patch(() => ({ error: e instanceof Error && e.message === "rate_limited" ? "One moment, then try again." : "The co-pilot couldn't start just now." }));
+    } finally {
+      patch(() => ({ running: false }));
     }
   }
 
@@ -139,7 +176,15 @@ export default function TeacherDashboard({ code }: { code: string }) {
                 <Image src={a.sheet.src} alt="" width={40} height={56} unoptimized className="h-14 w-10 rounded-lg object-cover object-top ring-1 ring-slate-200" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-slate-800">{a.sheet.title}</span>
-                  <span className="text-xs text-slate-500">{count} {count === 1 ? "question" : "questions"}</span>
+                  <span className="text-xs text-slate-500">
+                    {a.studentIds ? `For ${a.studentIds.length} ${a.studentIds.length === 1 ? "learner" : "learners"} · ` : ""}
+                    {count} asked
+                  </span>
+                  {(a.origin === "copilot" || a.origin === "generated") && (
+                    <span className="mt-1 inline-block rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700 ring-1 ring-orange-100">
+                      {a.origin === "copilot" ? "Co-pilot practice" : "Written by A-Note"}
+                    </span>
+                  )}
                 </span>
               </motion.button>
             );
@@ -158,18 +203,32 @@ export default function TeacherDashboard({ code }: { code: string }) {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{selected.sheet.title}</h1>
               {selected.sheet.subject && (
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${SUBJECT_STYLES[selected.sheet.subject]}`}>{selected.sheet.subject}</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${subjectStyle(selected.sheet.subject)}`}>{selected.sheet.subject}</span>
               )}
               <button type="button" onClick={() => remove(selected.id)} className="ml-auto text-sm text-slate-400 hover:text-rose-600">
                 Remove
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat label="Questions asked" value={asks.length} />
               <Stat label="Learners asking" value={`${askingLearners}/${learners.length}`} />
               <Stat label="Solved after hints" value={asks.length ? `${Math.round((solvedCount / asks.length) * 100)}%` : "—"} />
+              <Stat label="Work checked · correct" value={checks.length ? `${checks.length} · ${checks.filter((c) => c.solved).length}` : "—"} />
             </div>
+
+            {!selected.studentIds && (
+              <CopilotPanel
+                run={shownRun ? shownRun.run : savedRun}
+                steps={shownRun ? shownRun.steps : (savedRun?.steps ?? [])}
+                running={Boolean(shownRun?.running)}
+                made={shownRun ? shownRun.made : madeBy(savedRun)}
+                students={learners}
+                error={shownRun?.error ?? null}
+                onRun={copilot}
+                canRun={allAsks.length > 0}
+              />
+            )}
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
               <ClassHeatmap sheet={selected.sheet} asks={asks} clusters={clusters} active={activeSpot} onSelect={setActiveSpot} />
@@ -219,12 +278,16 @@ export default function TeacherDashboard({ code }: { code: string }) {
 function Learners({ data, assignmentId, now }: { data: Dashboard; assignmentId: string; now: number }) {
   const rows = data.students
     .map((s) => {
-      const mine = data.asks.filter((a) => a.studentId === s.id && a.assignmentId === assignmentId);
+      const all = data.asks.filter((a) => a.studentId === s.id && a.assignmentId === assignmentId);
+      const mine = all.filter((a) => a.kind !== "check");
+      const checked = all.filter((a) => a.kind === "check");
       return {
         student: s,
         asks: mine.length,
         solved: mine.filter((a) => a.solved).length,
         hints: mine.reduce((sum, a) => sum + a.hintsSeen, 0),
+        right: checked.filter((a) => a.solved).length,
+        slips: checked.filter((a) => !a.solved).length,
       };
     })
     .sort((a, b) => b.asks - a.asks || b.student.lastSeenAt.localeCompare(a.student.lastSeenAt));
@@ -242,6 +305,7 @@ function Learners({ data, assignmentId, now }: { data: Dashboard; assignmentId: 
               <th className="py-2 text-right font-medium">Asked</th>
               <th className="py-2 text-right font-medium">Solved</th>
               <th className="hidden py-2 text-right font-medium sm:table-cell">Hints used</th>
+              <th className="py-2 text-right font-medium">Checked</th>
               <th className="py-2 text-right font-medium">Last active</th>
             </tr>
           </thead>
@@ -258,6 +322,15 @@ function Learners({ data, assignmentId, now }: { data: Dashboard; assignmentId: 
                   <td className="py-2.5 text-right tabular-nums">{r.asks}</td>
                   <td className="py-2.5 text-right tabular-nums">{r.solved}</td>
                   <td className="hidden py-2.5 text-right tabular-nums sm:table-cell">{r.hints}</td>
+                  <td className="py-2.5 text-right tabular-nums">
+                    {r.right + r.slips === 0 ? (
+                      <span className="text-slate-300">—</span>
+                    ) : (
+                      <>
+                        {r.right > 0 && <span className="text-emerald-600">✓{r.right}</span>} {r.slips > 0 && <span className="text-rose-600">✗{r.slips}</span>}
+                      </>
+                    )}
+                  </td>
                   <td className="py-2.5 text-right text-slate-500">{timeAgo(r.student.lastSeenAt, now)}</td>
                 </motion.tr>
               ))}

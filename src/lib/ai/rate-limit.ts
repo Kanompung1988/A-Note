@@ -13,6 +13,10 @@ export const LIMITS = {
   reply: 30,
   transcribe: 20,
   insights: 6,
+  picture: 6,
+  check: 15,
+  generate: 4,
+  copilot: 3,
 } as const;
 
 export function clientKey(request: Request): string {

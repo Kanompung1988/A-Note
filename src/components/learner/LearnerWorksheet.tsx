@@ -11,10 +11,11 @@ export default function LearnerWorksheet({ code, assignmentId }: { code: string;
   const seat = learnerSeat(code);
   const [classRoom, setClassRoom] = useState<PublicClass | null>(null);
   const [failed, setFailed] = useState(false);
+  const studentId = seat?.studentId;
 
   useEffect(() => {
-    getClass(code).then(setClassRoom, () => setFailed(true));
-  }, [code]);
+    getClass(code, studentId).then(setClassRoom, () => setFailed(true));
+  }, [code, studentId]);
 
   const assignment = classRoom?.assignments.find((a) => a.id === assignmentId);
 

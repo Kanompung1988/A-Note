@@ -4,10 +4,10 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TopBar } from "@/components/ui/TopBar";
 import { createClass } from "@/lib/class/api";
-import { formatCode, saveTeacherSeat, teacherSeats } from "@/lib/class/identity";
+import { formatCode, saveTeacherSeat, teacherSeats, type TeacherSeat } from "@/lib/class/identity";
 
 export default function TeacherHome() {
   const router = useRouter();
@@ -16,6 +16,21 @@ export default function TeacherHome() {
   const [teacherName, setTeacherName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // A seat handed over in the link (#seat=…, printed by scripts/seed-demo.mjs) opens that class on this device.
+  useEffect(() => {
+    const match = window.location.hash.match(/^#seat=(.+)$/);
+    if (!match) return;
+    try {
+      const seat = JSON.parse(decodeURIComponent(match[1])) as TeacherSeat;
+      if (seat.code && seat.teacherKey) {
+        saveTeacherSeat(seat);
+        router.replace(`/teacher/${seat.code}`);
+      }
+    } catch {
+      // not a seat link
+    }
+  }, [router]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,8 +56,8 @@ export default function TeacherHome() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           <h1 className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">See where your class is stuck, while they work.</h1>
           <p className="text-lg text-slate-600">
-            Learners circle what confuses them. A-Note tutors each one with hints, and your dashboard lights up the spots the whole class
-            circled, with a re-teach plan from Muse Spark.
+            Write a worksheet in one line. Learners circle what confuses them and check their own working. Your dashboard lights up where the
+            class is stuck, and the co-pilot writes tomorrow&apos;s practice for exactly the learners who need it.
           </p>
           <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }} className="hidden md:block">
             <Image src="/brand/peek.webp" alt="" width={220} height={218} className="h-[218px] w-[220px]" />

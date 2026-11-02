@@ -16,11 +16,13 @@ export default function LearnerHome({ code }: { code: string }) {
   const [classRoom, setClassRoom] = useState<PublicClass | null>(null);
   const [missing, setMissing] = useState(false);
 
+  const studentId = seat?.studentId;
+
   // New worksheets appear without a reload.
   useEffect(() => {
     let cancelled = false;
     const load = () =>
-      getClass(code)
+      getClass(code, studentId)
         .then((c) => !cancelled && setClassRoom(c))
         .catch(() => !cancelled && setMissing(true));
     void load();
@@ -29,7 +31,11 @@ export default function LearnerHome({ code }: { code: string }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [code]);
+  }, [code, studentId]);
+
+  const latestFirst = [...(classRoom?.assignments ?? [])].reverse();
+  const forYou = latestFirst.filter((a) => a.forYou);
+  const everyone = latestFirst.filter((a) => !a.forYou);
 
   if (!seat) {
     return (
@@ -62,14 +68,39 @@ export default function LearnerHome({ code }: { code: string }) {
           </div>
         </motion.div>
 
+        {forYou.length > 0 && (
+          <>
+            <p className="mt-10 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-orange-600">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-orange-500" />
+              Made for you
+            </p>
+            <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {forYou.map((a, i) => (
+                <Link key={a.id} href={`/class/${code}/${a.id}`}>
+                  <SheetCard
+                    sheet={a.sheet}
+                    index={i}
+                    footer={
+                      <>
+                        {a.note && <p className="mt-2 rounded-xl bg-orange-50 px-3 py-2 text-sm text-slate-700 ring-1 ring-orange-100">{a.note}</p>}
+                        <p className="mt-2 text-sm font-medium text-orange-600">Start →</p>
+                      </>
+                    }
+                  />
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
+
         <p className="mt-10 text-xs font-semibold uppercase tracking-wide text-slate-500">Your worksheets</p>
-        {classRoom && classRoom.assignments.length === 0 && (
+        {classRoom && everyone.length === 0 && (
           <p className="mt-3 rounded-3xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-500">
             Your teacher hasn&apos;t assigned anything yet. This page updates by itself.
           </p>
         )}
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {[...(classRoom?.assignments ?? [])].reverse().map((a, i) => (
+          {everyone.map((a, i) => (
             <Link key={a.id} href={`/class/${code}/${a.id}`}>
               <SheetCard sheet={a.sheet} index={i} footer={<p className="mt-2 text-sm font-medium text-orange-600">Open →</p>} />
             </Link>

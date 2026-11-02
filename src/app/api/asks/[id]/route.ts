@@ -7,6 +7,7 @@ const Body = z.object({
   region: pageRegion.nullable().optional(),
   circled: z.string().max(500).optional(),
   topic: z.string().max(200).optional(),
+  slip: z.string().max(500).nullable().optional(),
   hintsSeen: z.number().int().min(0).max(20).optional(),
   replies: z.number().int().min(0).max(500).optional(),
   solved: z.boolean().optional(),

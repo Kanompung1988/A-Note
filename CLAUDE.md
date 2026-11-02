@@ -9,7 +9,7 @@ teaches step by step. Teachers see where the class is stuck.
 
 ## Hard rules
 1. **Every AI call in the app goes to the Meta Model API** through `src/lib/meta/client.ts`
-   (Muse Spark, SAM 3.1, Muse Voice Transcribe). No other model provider in `src/`.
+   (Muse Spark, Muse Wonder, Muse Image, SAM 3.1, Muse Voice Transcribe). No other model provider in `src/`.
 2. `OPEN_AI_API_KEY` is only for offline brand-asset scripts under `scripts/brand/`. Never import it in `src/`.
 3. **All code here is written fresh during the hackathon.** Never copy code from other projects.
 4. Secrets live only in `.env.local` (gitignored) and the host's env settings. Never print, log or commit them;
@@ -26,12 +26,19 @@ npm run check:meta   # smoke-test the Meta key (prints model ids and one reply, 
 npm test             # vitest unit tests
 npm run smoke -- <baseUrl> <shotsDir> [--ai]        # Chrome drives /study; --ai also calls the real models
 npm run smoke:class -- <baseUrl> <shotsDir> [--ai]  # a teacher and two learners end to end
+npm run smoke:check -- <baseUrl> <shotsDir>          # Check my work marks a wrong and a right block (real models)
+npm run smoke:platform -- <baseUrl> <shotsDir>       # create a worksheet, run the co-pilot, targeted learners (real models)
+npm run seed -- <baseUrl>                            # a demo class with circles and checked work; prints a teacher link
 ```
 
 ## Map
 - `src/lib/meta/client.ts`: the only Meta Model API client. `src/lib/ai/*`: SAM, tutor, insights, transcribe, rate limits.
 - `src/lib/ink/*`: pure ink geometry (loop detection, tested), rendering, capture of the circled region.
-- `src/lib/store/*`: class data behind `read`/`write` in `db.ts` (a JSON file in `.data/` for now; swap here for a hosted DB).
+- `src/lib/store/*`: documents behind the small `DocStore` in `db.ts`: Supabase (`docs` table, `files` bucket) when
+  `SUPABASE_URL` is set, otherwise a JSON file in `.data/`. Answer keys live on assignments and never leave the server for learners.
+- `src/lib/ai/worksheet.ts` (write → verify with Muse Wonder → repair → draw → lay out), `copilot.ts` (tool-calling agent),
+  `check.ts` (handwritten work, set-of-mark line tags), `verify.ts` + `answers.ts` (independent solve and matching).
+- `src/lib/worksheet/layout.ts`: pure SVG layout of generated sheets with question boxes (tested). `src/lib/ink/lines.ts`: ink → lines → work block (tested).
 - `src/lib/class/*`: spot clustering (tested), browser API calls, this browser's teacher/learner seats (localStorage).
 - Pages: `/` landing, `/study` solo, `/join` → `/class/[code]` → `/class/[code]/[assignmentId]`, `/teacher` → `/teacher/[code]`.
   Screens that read localStorage load through `src/components/ClientOnly.tsx` (no server render).

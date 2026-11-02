@@ -16,9 +16,13 @@ type Props = {
   onUndo: () => void;
   canClear: boolean;
   onClear: () => void;
+  /** "Check my work"; hidden when not set */
+  onCheck?: () => void;
+  canCheck?: boolean;
+  checking?: boolean;
 };
 
-export function Toolbar({ choice, onChoose, canUndo, onUndo, canClear, onClear }: Props) {
+export function Toolbar({ choice, onChoose, canUndo, onUndo, canClear, onClear, onCheck, canCheck, checking }: Props) {
   return (
     <div className="flex items-center gap-1 border-b border-slate-200 bg-white px-3 py-2">
       {PEN_COLORS.map(({ color, label }) => (
@@ -52,7 +56,25 @@ export function Toolbar({ choice, onChoose, canUndo, onUndo, canClear, onClear }
           <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />
         </svg>
       </ToolButton>
-      <span className="ml-auto hidden text-xs text-slate-400 sm:block">Circle anything you don&apos;t get, then tap “Ask here”</span>
+      <span className="ml-auto hidden text-xs text-slate-400 lg:block">Circle anything you don&apos;t get, then tap “Ask here”</span>
+      {onCheck && (
+        <button
+          type="button"
+          onClick={onCheck}
+          disabled={!canCheck}
+          title="A-Note reads your working and marks the first slip"
+          className="ml-auto flex h-10 items-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-40 lg:ml-3"
+        >
+          {checking ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+          ) : (
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12.5l5 5L20 6.5" />
+            </svg>
+          )}
+          {checking ? "Checking…" : "Check my work"}
+        </button>
+      )}
     </div>
   );
 }
