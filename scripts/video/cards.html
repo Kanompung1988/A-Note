@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A-Note video cards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --navy: #0c2461; --ink: #0f172a; --muted: #475569; --orange: #f97316; --orange-deep: #ea580c; --red: #dc2626; --green: #059669; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; }
+  body { font-family: Geist, system-ui, sans-serif; color: var(--ink); background: radial-gradient(1200px 700px at 78% 18%, #dbeafe 0%, transparent 60%), linear-gradient(180deg, #e0f2fe 0%, #f8fafc 70%); }
+  .card { position: absolute; inset: 0; display: none; }
+  .card.show { display: block; }
+  [data-at] { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1); }
+  [data-at].on { opacity: 1; transform: none; }
+  .pill { display: inline-flex; align-items: center; gap: 12px; padding: 12px 24px; border-radius: 999px; font-weight: 600; font-size: 26px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--orange); }
+  img { display: block; }
+  @keyframes float { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-14px) rotate(2deg); } }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(249,115,22,.45); } 50% { box-shadow: 0 0 0 14px rgba(249,115,22,0); } }
+
+  /* hook */
+  #hook .left { position: absolute; left: 150px; top: 210px; width: 820px; }
+  #hook h1 { font-size: 112px; line-height: 1.02; letter-spacing: -3px; font-weight: 800; }
+  #hook h1 .o { color: var(--orange); }
+  #hook p.big { margin-top: 46px; font-size: 46px; line-height: 1.22; font-weight: 600; letter-spacing: -.5px; }
+  #hook p.late { margin-top: 26px; font-size: 40px; line-height: 1.25; font-weight: 600; color: var(--red); }
+  #hook .room { position: absolute; left: 1070px; top: 170px; width: 700px; }
+  #hook .desk { margin: 0 auto 44px; width: 240px; height: 78px; border-radius: 22px; background: var(--navy); color: #fff; font-size: 26px; font-weight: 700; display: grid; place-items: center; }
+  #hook .seats { display: grid; grid-template-columns: repeat(8, 64px); gap: 22px 22px; justify-content: center; }
+  #hook .seat { width: 64px; height: 64px; border-radius: 20px; background: #cbd5e1; opacity: 0; transform: scale(.4); transition: opacity .35s ease, transform .45s cubic-bezier(.2,1.4,.4,1), background .5s ease; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 30px; }
+  #hook .seat.on { opacity: 1; transform: none; }
+  #hook .seat.lost { background: var(--orange); animation: pulse 1.6s ease-in-out infinite; }
+  #hook .test { position: absolute; right: 60px; top: 760px; width: 420px; padding: 24px 28px; border-radius: 26px; background: #fff; box-shadow: 0 30px 60px -20px rgba(15,23,42,.35); }
+  #hook .test b { font-size: 28px; }
+  #hook .test span { display: block; margin-top: 6px; color: var(--muted); font-size: 22px; }
+  #hook .test i { position: absolute; right: 28px; top: 18px; font-style: normal; color: var(--red); font-size: 64px; font-weight: 800; }
+
+  /* title */
+  #title .centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  #title .mark { width: 920px; }
+  #title h2 { margin-top: 40px; font-size: 64px; letter-spacing: -1.5px; font-weight: 800; }
+  #title h2 .o { color: var(--orange); }
+  #title .sides { margin-top: 44px; display: flex; gap: 28px; }
+  #title .side { padding: 22px 34px; border-radius: 26px; text-align: left; background: #fff; box-shadow: 0 20px 50px -24px rgba(15,23,42,.35); }
+  #title .side b { display: block; font-size: 34px; }
+  #title .side span { display: block; margin-top: 4px; font-size: 26px; color: var(--muted); }
+  #title .side.t b { color: var(--navy); }
+  #title .side.l b { color: var(--orange-deep); }
+  #title .meta { margin-top: 54px; font-size: 24px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  #title .chips { margin-top: 16px; display: flex; gap: 14px; }
+  .chip { padding: 12px 22px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 26px; font-weight: 600; }
+
+  /* trust */
+  #trust h2 { position: absolute; left: 150px; top: 120px; font-size: 76px; letter-spacing: -2px; font-weight: 800; }
+  #trust h2 .o { color: var(--orange); }
+  #trust .models { position: absolute; left: 150px; right: 150px; top: 270px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 22px; }
+  #trust .model { padding: 26px 26px 28px; border-radius: 26px; background: #fff; box-shadow: 0 20px 50px -26px rgba(15,23,42,.4); }
+  #trust .model b { display: block; font-size: 30px; }
+  #trust .model span { display: block; margin-top: 10px; font-size: 22px; line-height: 1.3; color: var(--muted); }
+  #trust .model.wonder { outline: 4px solid var(--green); }
+  #trust .stats { position: absolute; left: 150px; right: 150px; top: 560px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  #trust .stat { padding: 40px 46px; border-radius: 32px; background: var(--ink); color: #fff; }
+  #trust .stat b { display: block; font-size: 128px; line-height: 1; letter-spacing: -4px; font-weight: 800; }
+  #trust .stat b small { font-size: 64px; color: #94a3b8; letter-spacing: -1px; }
+  #trust .stat span { display: block; margin-top: 18px; font-size: 32px; color: #cbd5e1; }
+  #trust .stat.g b { color: #4ade80; }
+  #trust .foot { position: absolute; left: 150px; bottom: 70px; font-size: 22px; color: var(--muted); }
+
+  /* close */
+  #close .centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  #close .mark { width: 760px; }
+  #close h2 { margin-top: 36px; font-size: 78px; line-height: 1.08; letter-spacing: -2px; font-weight: 800; }
+  #close h2 .o { color: var(--orange); }
+  #close .url { margin-top: 50px; padding: 22px 46px; border-radius: 999px; background: var(--orange); color: #fff; font-size: 48px; font-weight: 700; box-shadow: 0 26px 50px -22px rgba(234,88,12,.7); }
+  #close .sub { margin-top: 20px; font-size: 28px; color: var(--muted); }
+  #close .foot { position: absolute; left: 0; right: 0; bottom: 64px; text-align: center; font-size: 24px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<section class="card" id="hook">
+  <div class="left">
+    <div class="pill" style="background:#fff;box-shadow:0 10px 30px -16px rgba(15,23,42,.4)" data-at="start"><span class="dot"></span>A classroom in Thailand</div>
+    <h1 style="margin-top:34px"><span data-at="teacher" style="display:block">1 teacher.</span><span class="o" data-at="forty" style="display:block">40 learners.</span></h1>
+    <p class="big" data-at="ones">The ones who need help most never raise their hand.</p>
+    <p class="late" data-at="finds">Their teacher finds out at the test,<br>weeks later.</p>
+  </div>
+  <div class="room">
+    <div class="desk" data-at="teacher">Teacher</div>
+    <div class="seats" id="seats"></div>
+  </div>
+  <div class="test" data-at="finds"><b>Unit test · week 4</b><span>Brackets, two-step equations</span><i>✗</i></div>
+</section>
+
+<section class="card" id="title">
+  <div class="centre">
+    <img class="mark" src="../../public/brand/wordmark.png" alt="" data-at="start">
+    <h2 data-at="platform">The <span class="o">AI-powered</span> classroom learning platform</h2>
+    <div class="sides">
+      <div class="side t" data-at="teachers"><b>For teachers</b><span>create · see the class · plan tomorrow</span></div>
+      <div class="side l" data-at="learners"><b>For learners</b><span>write · circle to ask · check my work</span></div>
+    </div>
+    <p class="meta" data-at="meta">Built on Meta's models</p>
+    <div class="chips" data-at="meta">
+      <span class="chip">Muse Spark</span><span class="chip">Muse Wonder</span><span class="chip">Muse Image</span><span class="chip">SAM 3.1</span><span class="chip">Muse Voice Transcribe</span>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="trust">
+  <h2 data-at="start">Five Meta models, <span class="o">checking each other</span></h2>
+  <div class="models">
+    <div class="model" data-at="start"><b>Muse Spark</b><span>writes worksheets, tutors, checks working, runs the co-pilot agent</span></div>
+    <div class="model wonder" data-at="check"><b>Muse Wonder</b><span>solves every answer again, on its own, before learners see it</span></div>
+    <div class="model" data-at="start"><b>SAM 3.1</b><span>outlines exactly what a learner circled</span></div>
+    <div class="model" data-at="start"><b>Muse Image</b><span>draws worksheet scenes and Show me hints</span></div>
+    <div class="model" data-at="start"><b>Muse Voice Transcribe</b><span>questions asked out loud</span></div>
+  </div>
+  <div class="stats">
+    <div class="stat g" data-at="zero"><b>0<small> / 12</small></b><span>answers leaked when learners pushed for them</span></div>
+    <div class="stat g" data-at="slip"><b>10<small> / 10</small></b><span>first slips found on the exact line</span></div>
+  </div>
+  <p class="foot" data-at="zero">Eval on the live app with the real models · eval/results.md in the repo</p>
+</section>
+
+<section class="card" id="close">
+  <div class="centre">
+    <img class="mark" src="../../public/brand/wordmark.png" alt="" data-at="start">
+    <h2><span data-at="heard" style="display:block">Every learner heard.</span><span class="o" data-at="sharper" style="display:block">Every lesson sharper.</span></h2>
+    <div class="url" data-at="try">a-note-five.vercel.app</div>
+    <p class="sub" data-at="try">Try it now, no sign-up: /study</p>
+  </div>
+  <p class="foot" data-at="start">github.com/Kanompung1988/A-Note · Team Areazero.ai · Meta Global AI Developer Hackathon</p>
+</section>
+
+<script>
+  const card = new URLSearchParams(location.search).get("card");
+  document.getElementById(card).classList.add("show");
+  const seats = document.getElementById("seats");
+  const LOST = [3, 12, 17, 26, 30, 37];
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement("div");
+    s.className = "seat";
+    s.dataset.i = i;
+    seats.appendChild(s);
+  }
+  /** Turns on every [data-at=name] element at its cue, in seconds from now. */
+  window.play = (cues) => {
+    for (const el of document.querySelectorAll(`#${card} [data-at]`)) {
+      const at = cues[el.dataset.at];
+      if (at != null) setTimeout(() => el.classList.add("on"), at * 1000);
+    }
+    if (card === "hook") {
+      seats.querySelectorAll(".seat").forEach((s, i) => setTimeout(() => s.classList.add("on"), (cues.forty + i * 0.022) * 1000));
+      LOST.forEach((n, i) => setTimeout(() => { const s = seats.children[n]; s.classList.add("lost"); s.textContent = "?"; }, (cues.ones + 0.5 + i * 0.12) * 1000));
+    }
+  };
+  window.ready = document.fonts.ready.then(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {}))));
+</script>
+</body>
+</html>

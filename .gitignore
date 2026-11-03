@@ -51,3 +51,6 @@ next-env.d.ts
 # local demo data (classes, uploads)
 /.data/
 /supabase/.temp/
+
+# demo video build output
+/video-out

@@ -155,7 +155,9 @@ eval and smoke suites; then the full board toolset, hand in and teacher notes, P
 ## Other tools
 
 Brand assets (logo, mascot, app icon) were drawn offline with an image model ([`scripts/brand/generate-logo.mjs`](scripts/brand/generate-logo.mjs));
-the share card is rendered from HTML ([`scripts/brand/og-image.mjs`](scripts/brand/og-image.mjs)). No non-Meta model runs in the app.
+the share card is rendered from HTML ([`scripts/brand/og-image.mjs`](scripts/brand/og-image.mjs)). The demo video is recorded from the live app with the
+real models and cut to an ElevenLabs voiceover ([`scripts/video`](scripts/video)); waits on the models are sped up and labelled as such.
+No non-Meta model runs in the app.
 The mascot is an original clownfish whose tail is a pencil tip. The sample worksheets are original. Code was written with AI coding assistants.
 
 Team **Areazero.ai**.

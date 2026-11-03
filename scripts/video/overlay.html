@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A-Note video overlays</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+  body { font-family: Geist, system-ui, sans-serif; color: #0f172a; position: relative; }
+  #layer > * { position: absolute; }
+  .top { left: 160px; right: 160px; top: 0; height: 84px; display: flex; align-items: center; gap: 18px; }
+  .side { padding: 9px 18px; border-radius: 999px; font-size: 19px; font-weight: 700; letter-spacing: 1.4px; color: #fff; }
+  .side.teacher { background: #0c2461; }
+  .side.learner { background: #f97316; }
+  .side.both { background: linear-gradient(90deg, #0c2461, #f97316); }
+  .label { font-size: 31px; font-weight: 700; letter-spacing: -.4px; }
+  .models { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .models em { font-style: normal; font-size: 18px; font-weight: 600; color: #64748b; margin-right: 4px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 15px; border-radius: 999px; background: #fff; font-size: 19px; font-weight: 600; box-shadow: 0 6px 16px -10px rgba(15,23,42,.5); }
+  .chip::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #f97316; }
+  .mark { right: 160px; bottom: 0; height: 96px; display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 600; color: #64748b; }
+  .mark img { width: 32px; height: 32px; border-radius: 9px; }
+  .caption { left: 330px; right: 330px; bottom: 0; height: 96px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -.2px; }
+  .badge { right: 182px; top: 104px; display: flex; align-items: center; gap: 10px; padding: 11px 20px; border-radius: 999px; background: rgba(15,23,42,.84); color: #fff; font-size: 21px; font-weight: 600; box-shadow: 0 10px 30px -12px rgba(15,23,42,.6); }
+  .badge b { color: #fdba74; font-size: 23px; }
+</style>
+</head>
+<body>
+<div id="layer"></div>
+<script>
+  const W = { x: 160, y: 84, w: 1600, h: 900, r: 18 };
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const SIDE = { teacher: "FOR TEACHERS", learner: "FOR LEARNERS", both: "FOR TEACHERS & LEARNERS" };
+
+  /** The frame around the app: background with a see-through window, the scene label, the models at work. */
+  function frame({ side, label, models }) {
+    const hole = `M${W.x + W.r},${W.y} h${W.w - 2 * W.r} a${W.r},${W.r} 0 0 1 ${W.r},${W.r} v${W.h - 2 * W.r} a${W.r},${W.r} 0 0 1 -${W.r},${W.r} h-${W.w - 2 * W.r} a${W.r},${W.r} 0 0 1 -${W.r},-${W.r} v-${W.h - 2 * W.r} a${W.r},${W.r} 0 0 1 ${W.r},-${W.r} Z`;
+    const outside = `M0,0 H1920 V1080 H0 Z ${hole}`;
+    return `
+      <svg width="1920" height="1080" style="left:0;top:0">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset=".75" stop-color="#f8fafc"/></linearGradient>
+          <radialGradient id="glow" cx=".8" cy=".1" r=".6"><stop offset="0" stop-color="#dbeafe"/><stop offset="1" stop-color="#dbeafe" stop-opacity="0"/></radialGradient>
+          <clipPath id="out"><path d="${outside}" clip-rule="evenodd"/></clipPath>
+          <filter id="blur" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="18"/></filter>
+        </defs>
+        <path d="${outside}" fill="url(#bg)" fill-rule="evenodd"/>
+        <path d="${outside}" fill="url(#glow)" fill-rule="evenodd"/>
+        <g clip-path="url(#out)"><path d="${hole}" transform="translate(0 14)" fill="rgba(15,23,42,.28)" filter="url(#blur)"/></g>
+        <path d="${hole}" fill="none" stroke="rgba(15,23,42,.10)" stroke-width="2"/>
+      </svg>
+      <div class="top">
+        <span class="side ${side}">${SIDE[side]}</span>
+        <span class="label">${esc(label)}</span>
+        <span class="models">${models.length ? "<em>Meta models at work</em>" : ""}${models.map((m) => `<span class="chip">${esc(m)}</span>`).join("")}</span>
+      </div>
+      <div class="mark"><img src="../../public/brand/icon.png" alt="">a-note-five.vercel.app</div>`;
+  }
+  const caption = ({ text }) => `<div class="caption">${esc(text)}</div>`;
+  const badge = ({ speed }) =>
+    `<div class="badge"><svg width="26" height="18" viewBox="0 0 26 18"><path d="M0 0 L12 9 L0 18 Z M13 0 L25 9 L13 18 Z" fill="#fdba74"/></svg><b>${speed}×</b> live Meta model calls, sped up</div>`;
+
+  window.render = async (kind, data) => {
+    document.getElementById("layer").innerHTML = { frame, caption, badge }[kind](data);
+    await document.fonts.ready;
+    await Promise.all([...document.images].map((i) => i.decode().catch(() => {})));
+  };
+</script>
+</body>
+</html>

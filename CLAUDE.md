@@ -10,7 +10,8 @@ teaches step by step. Teachers see where the class is stuck.
 ## Hard rules
 1. **Every AI call in the app goes to the Meta Model API** through `src/lib/meta/client.ts`
    (Muse Spark, Muse Wonder, Muse Image, SAM 3.1, Muse Voice Transcribe). No other model provider in `src/`.
-2. `OPEN_AI_API_KEY` is only for offline brand-asset scripts under `scripts/brand/`. Never import it in `src/`.
+2. `OPEN_AI_API_KEY` is only for offline brand-asset scripts under `scripts/brand/`, and `ELEVENLABS_API_KEY` only for
+   the demo video's voiceover and music under `scripts/video/`. Never import either in `src/`.
 3. **All code here is written fresh during the hackathon.** Never copy code from other projects.
 4. Secrets live only in `.env.local` (gitignored) and the host's env settings. Never print, log or commit them;
    when inspecting env files, show names and lengths only.
