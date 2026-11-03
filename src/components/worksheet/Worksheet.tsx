@@ -79,7 +79,9 @@ export default function Worksheet({ sheet, overlay, marks, initialStrokes, onAsk
   const dragRef = useRef<Drag | null>(null);
   const pointerRef = useRef<number | null>(null);
   const frameRef = useRef(0);
-  const erasedRef = useRef(false);
+  // the page after the eraser's last hit in this gesture (null until it hits); pointer events can
+  // arrive faster than renders, so each one must erase from here, not from the last render's strokes
+  const erasedRef = useRef<Stroke[] | null>(null);
   const placedRef = useRef(new Set<string>());
 
   const [strokes, setStrokes] = useState<Stroke[]>(() => {
@@ -353,10 +355,10 @@ export default function Worksheet({ sheet, overlay, marks, initialStrokes, onAsk
     pointerRef.current = e.pointerId;
 
     if (choice.tool === "eraser") {
-      erasedRef.current = false;
+      erasedRef.current = null;
       const next = eraseAt(point, strokes);
       if (next.length !== strokes.length) {
-        erasedRef.current = true;
+        erasedRef.current = next;
         commit(next);
       }
       return;
@@ -400,15 +402,14 @@ export default function Worksheet({ sheet, overlay, marks, initialStrokes, onAsk
     const coalesced = e.nativeEvent.getCoalescedEvents?.() ?? [];
     const events = coalesced.length ? coalesced : [e.nativeEvent];
     if (choice.tool === "eraser") {
-      let next = strokes;
+      const from = erasedRef.current ?? strokes;
+      let next = from;
       for (const ev of events) next = eraseAt(toPage(ev), next);
-      if (next.length !== strokes.length) {
+      if (next.length !== from.length) {
         // one undo step per eraser gesture
         if (erasedRef.current) setStrokes(next);
-        else {
-          erasedRef.current = true;
-          commit(next);
-        }
+        else commit(next);
+        erasedRef.current = next;
       }
       return;
     }
@@ -496,7 +497,7 @@ export default function Worksheet({ sheet, overlay, marks, initialStrokes, onAsk
   const cursor = { pen: "crosshair", highlighter: "crosshair", shape: "crosshair", eraser: "cell", text: "text", lasso: "default" }[choice.tool];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <Toolbar
         choice={choice}
         onChoose={choose}

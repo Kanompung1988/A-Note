@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright-core";
+import { write } from "./handwriting.mjs";
 
 const [baseUrl = "http://localhost:3000", shots = "smoke-shots"] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 mkdirSync(shots, { recursive: true });
@@ -117,6 +118,33 @@ try {
   const after = await ink();
   check(after.length === before && after.at(-1).tool === "pen" && !after.at(-1).shape, `the pen draws after zooming (${after.map((st) => st.shape ?? st.tool).join(", ")})`);
   await page.screenshot({ path: path.join(shots, "tools.png") });
+
+  // a laptop-width screen with the check panel open (a stubbed check, so no model call): the toolbar
+  // scrolls instead of pushing the page under the panel, and switching tools does not move the page
+  const narrow = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  narrow.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+  await narrow.route("**/api/check", (r) =>
+    r.fulfill({ json: { grounded: false, check: { question: "3x + 7 = 22", lines: [{ n: 1, read: "3x = 22 + 7", ok: false }], first_slip: 1, slip: "7 was added", hint: "Undo + 7", all_correct: false, praise: "" } } }),
+  );
+  await narrow.goto(`${baseUrl}/study`, { waitUntil: "networkidle" });
+  const lines = [...write("3x = 22 + 7", 560, 405, 34), ...write("3x = 29", 560, 452, 34), ...write("x = 29/3", 560, 499, 34)];
+  await narrow.evaluate((st) => localStorage.setItem("a-note:ink:linear-equations", JSON.stringify(st)), lines);
+  await narrow.reload({ waitUntil: "networkidle" });
+  await narrow.getByRole("button", { name: "Check my work" }).click();
+  await narrow.getByRole("button", { name: "Check again" }).waitFor();
+  const panelWidth = await narrow.getByRole("button", { name: "Check again" }).evaluate((el) => el.closest("aside")?.getBoundingClientRect().width ?? 0);
+  const page1 = await narrow.locator("canvas").last().boundingBox();
+  await narrow.getByRole("button", { name: "Eraser (E)", exact: true }).click();
+  const page2 = await narrow.locator("canvas").last().boundingBox();
+  check(Math.round(panelWidth) === 400 && Math.round(page1.width) === Math.round(page2.width), `with the panel open the page keeps its size across tools (panel ${Math.round(panelWidth)} px, page ${Math.round(page1.width)} → ${Math.round(page2.width)} px)`);
+  const k = page2.width / 1240;
+  const sweep = [422, 469, 516].flatMap((y, row) => Array.from({ length: 120 }, (_, i) => [page2.x + (row % 2 ? 905 - i * 3 : 545 + i * 3) * k, page2.y + y * k]));
+  await narrow.mouse.move(...sweep[0]);
+  await narrow.mouse.down();
+  for (const p of sweep) await narrow.mouse.move(...p);
+  await narrow.mouse.up();
+  const left = await narrow.evaluate(() => JSON.parse(localStorage.getItem("a-note:ink:linear-equations") ?? "[]").length);
+  check(left === 0, `an eraser swipe clears all three lines (${left} of ${lines.length} strokes left)`);
 } finally {
   check(problems.length === 0, `no page errors${problems.length ? `:\n  ${problems.join("\n  ")}` : ""}`);
   await browser.close();

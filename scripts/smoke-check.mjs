@@ -64,6 +64,27 @@ try {
   check(await visible(page.locator('svg path[stroke="#dc2626"]'), 3_000), "a red ring is drawn around the slip");
   check(await visible(page.getByRole("button", { name: /Ask about line/ }), 2_000), "the learner can ask about that line");
 
+  // fix it by hand (erase the three lines, write one), then "Check again" must read the page as it is now
+  const canvas = page.locator("canvas").last();
+  const box = await canvas.boundingBox();
+  const s = box.width / 1240;
+  async function stroke(points) {
+    await page.mouse.move(box.x + points[0].x * s, box.y + points[0].y * s);
+    await page.mouse.down();
+    for (const p of points.slice(1)) await page.mouse.move(box.x + p.x * s, box.y + p.y * s);
+    await page.mouse.up();
+  }
+  await page.getByRole("button", { name: "Eraser (E)", exact: true }).click();
+  // one zigzag through the three lines
+  await stroke([422, 469, 516].flatMap((y, row) => Array.from({ length: 120 }, (_, i) => ({ x: row % 2 ? 900 - i * 3 : 550 + i * 3, y }))));
+  await page.getByRole("button", { name: "Pen (P)", exact: true }).click();
+  for (const st of write("x = 5", 560, 405, 34)) await stroke(st.points);
+  const recheck = page.waitForRequest((r) => r.url().endsWith("/api/check"));
+  await page.getByRole("button", { name: "Check again" }).click();
+  const sent = JSON.parse((await recheck).postData() ?? "{}");
+  check(sent.lineCount === 1, `"Check again" reads the fixed working, not the old lines (${sent.lineCount} line)`);
+  await page.waitForResponse((r) => r.url().endsWith("/api/check"), { timeout: 90_000 }).catch(() => {});
+
   const b = await runCheck([...wrong, ...right], "right");
   check(b?.all_correct === true, "correct working comes back all correct");
   check(await visible(page.locator('svg path[stroke="#16a34a"]'), 3_000), "green ticks are drawn");

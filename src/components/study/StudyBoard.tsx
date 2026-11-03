@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { askTutor, checkWork, drawPicture, replyTutor, segment, type KeyContext } from "@/lib/ai/api";
 import { recordAsk, updateAskRecord, type AskProgress } from "@/lib/class/api";
 import { captureRegion, captureWork, type Capture } from "@/lib/ink/capture";
@@ -60,10 +60,18 @@ export default function StudyBoard({
   const fileRef = useRef<HTMLInputElement>(null);
   // session id → the recorded ask id, so progress can be sent before the record call returns
   const recordsRef = useRef(new Map<string, Promise<string | null>>());
+  // the page as it is now, so "Check again" reads the fixed working, not the strokes of the last check
   const strokesRef = useRef<Stroke[]>([]);
   const [sheet, setSheet] = useState<Sheet>(initialSheet);
   const [session, setSession] = useState<Session | null>(null);
   const [check, setCheck] = useState<CheckSession | null>(null);
+  const inkChanged = useCallback(
+    (strokes: Stroke[]) => {
+      strokesRef.current = strokes;
+      onInkChange?.(strokes);
+    },
+    [onInkChange],
+  );
 
   // Only apply results that belong to the session still on screen.
   function update(id: string, change: (s: Session) => Partial<Session>) {
@@ -292,7 +300,7 @@ export default function StudyBoard({
           initialStrokes={initialStrokes}
           onAsk={handleAsk}
           onCheck={handleCheck}
-          onChange={onInkChange}
+          onChange={inkChanged}
           actions={toolbarActions}
         />
         {session && (
