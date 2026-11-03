@@ -9,7 +9,7 @@ Learners circle what they don't get and check their own handwritten working. A c
 into tomorrow's practice, for exactly the learners who need it. **Hints, never answers.**
 
 [![Live demo](https://img.shields.io/badge/▶%20Live%20demo-a--note--five.vercel.app-F97316?style=for-the-badge)](https://a-note-five.vercel.app)
-[![Watch the demo](https://img.shields.io/badge/🎬%20Watch-2:41%20demo-0C2461?style=for-the-badge)](https://a-note-five.vercel.app/video/a-note-demo.mp4)
+[![Watch the demo](https://img.shields.io/badge/🎬%20Watch-2:41%20demo%20on%20YouTube-FF0000?style=for-the-badge)](https://youtu.be/VcKM5BPRi70)
 [![Try it](https://img.shields.io/badge/✏️%20Try%20it-no%20sign--up-16A34A?style=for-the-badge)](https://a-note-five.vercel.app/study)
 
 ![Hackathon](https://img.shields.io/badge/Meta%20Global%20AI%20Developer%20Hackathon-2026-0866FF)
@@ -26,11 +26,11 @@ into tomorrow's practice, for exactly the learners who need it. **Hints, never a
 </div>
 
 <p align="center">
-  <a href="https://a-note-five.vercel.app/video/a-note-demo.mp4">
+  <a href="https://youtu.be/VcKM5BPRi70">
     <img src="docs/media/teaser.gif" alt="A learner circles an equation and SAM 3.1 outlines it with a hint pinned beside it; Check my work circles the first slip in red pen; the co-pilot writes a plan for tomorrow" width="820">
   </a>
   <br>
-  <sub>22 seconds from the <a href="https://a-note-five.vercel.app/video/a-note-demo.mp4">2:41 demo</a>, recorded on the live site with the real models</sub>
+  <sub>22 seconds from the <a href="https://youtu.be/VcKM5BPRi70">2:41 demo on YouTube</a> (also <a href="https://a-note-five.vercel.app/video/a-note-demo.mp4">as an MP4</a>), recorded on the live site with the real models</sub>
 </p>
 
 > [!IMPORTANT]
@@ -99,7 +99,7 @@ shows that the deployed server reaches the Meta Model API and sees all five mode
 | **Impact (30%)** | One teacher, forty learners: the ones who need help never raise their hand. A-Note makes asking as small as drawing a circle and closes the teacher's loop the same day ([why](#why)). It works on any device with a pen or a mouse, and answers each learner in their language. |
 | **Use of Meta AI tooling (25%)** | Five models, each doing what it is best at ([table](#how-a-note-uses-metas-models)): **set-of-mark prompting on handwriting** ([`lines.ts`](src/lib/ink/lines.ts), [`check.ts`](src/lib/ai/check.ts)); **Muse Wonder as an independent second solver** ([`verify.ts`](src/lib/ai/verify.ts)); SAM 3.1 box prompts from a pen loop, stacked into a class heatmap ([`segment.ts`](src/lib/ai/segment.ts)); a **tool-calling agent whose own tool refuses unverified work** ([`copilot.ts`](src/lib/ai/copilot.ts)); `previous_response_id` follow-ups; Muse Image pictures briefed by Spark so they don't give the answer away. |
 | **Technical depth (20%)** | Pure, unit-tested ink geometry ([`src/lib/ink`](src/lib/ink)); an SVG worksheet layout engine with Thai-aware wrapping ([`layout.ts`](src/lib/worksheet/layout.ts)); NDJSON streaming for long pipelines; strict JSON schemas everywhere; **46 unit tests and 8 browser suites (89 checks) that pass on production**, plus a model [eval](#eval-and-tests). |
-| **Demo (25%)** | The [2:41 video](https://a-note-five.vercel.app/video/a-note-demo.mp4) is recorded on the live site with the real models (waits sped up and labelled). The [live app](https://a-note-five.vercel.app) is the code on `main`. |
+| **Demo (25%)** | The [2:41 video](https://youtu.be/VcKM5BPRi70) is recorded on the live site with the real models (waits sped up and labelled). The [live app](https://a-note-five.vercel.app) is the code on `main`. |
 | **Best Agentic Use-Case** | The [co-pilot](#the-lesson-loop) reads the class, looks closer at learners, groups them by misconception, writes practice, has it verified, assigns it to the right learners and writes the plan, in one run with parallel tool calls. |
 | **Best Creative Build** | Muse Image draws each generated worksheet's scene and the **Show me** hints; Muse Wonder checks every answer key before learners see it. |
 
