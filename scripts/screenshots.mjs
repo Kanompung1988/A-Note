@@ -1,4 +1,4 @@
-// Takes the README screenshots from a running server (real models): docs/screenshots/*.png
+// Takes full-size screenshots from a running server (real models): video-out/screenshots/*.png
 // Usage: node scripts/screenshots.mjs [baseUrl] [ask|check|teacher ...]
 
 import { execFileSync } from "node:child_process";
@@ -8,7 +8,7 @@ import { chromium } from "playwright-core";
 import { write } from "./handwriting.mjs";
 
 const [baseUrl = "http://localhost:3000"] = process.argv.slice(2);
-const out = path.join("docs", "screenshots");
+const out = path.join("video-out", "screenshots");
 mkdirSync(out, { recursive: true });
 const executablePath = [process.env.CHROME_PATH, "C:/Program Files/Google/Chrome/Application/chrome.exe", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
   .filter(Boolean)

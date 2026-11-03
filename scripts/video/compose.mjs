@@ -1,7 +1,8 @@
 // Cuts the recorded takes to the voiceover and renders the demo video: video-out/A-Note-demo.mp4.
 // App scenes sit in a frame with the scene label, the Meta models at work and captions; waits on the
 // real models are sped up and badged as such. Needs voice.mjs, music.mjs, record.mjs and cards.mjs first.
-// Usage: FFMPEG=path/to/ffmpeg node scripts/video/compose.mjs [--plan]
+// Usage: FFMPEG=path/to/ffmpeg node scripts/video/compose.mjs [--plan] [--scenes hook,title,…] [--name A-Note-x] [--reuse-scenes]
+// (--scenes makes a shorter cut, e.g. for X, which plays up to 2:20; --reuse-scenes keeps scene files already rendered)
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -17,7 +18,12 @@ const XFADE = 0.4;
 const OUT = "video-out";
 const BUILD = path.join(OUT, "build");
 const WINDOW = { x: 160, y: 84 };
-const planOnly = process.argv.includes("--plan");
+const args = process.argv.slice(2);
+const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const planOnly = args.includes("--plan");
+const reuseScenes = args.includes("--reuse-scenes");
+const only = option("--scenes")?.split(",");
+const NAME = option("--name") ?? "A-Note-demo";
 mkdirSync(BUILD, { recursive: true });
 
 const ff = (args) => execFileSync(FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", ...args], { stdio: ["ignore", "inherit", "inherit"] });
@@ -109,7 +115,7 @@ function plan(scene) {
   return { scene, voice, clips, length, content: t, badges, captions };
 }
 
-const plans = SCENES.map(plan);
+const plans = SCENES.filter((s) => !only || only.includes(s.id)).map(plan);
 for (const p of plans) {
   const parts = p.clips.map((c) => `${c.take}:${c.from}→${c.to} ${c.length.toFixed(1)}s${c.speed !== 1 ? ` ×${c.speed.toFixed(1)}` : ""}`);
   console.log(`${p.scene.id.padEnd(9)} ${p.length.toFixed(1).padStart(5)} s (voice ${p.voice.end.toFixed(1)}, cut ${p.content.toFixed(1)})  ${parts.join(" | ")}`);
@@ -186,6 +192,7 @@ for (const p of plans) {
   const script = path.join(BUILD, `scene-${p.scene.id}.graph`);
   writeFileSync(script, graph.join(";\n"));
   p.file = path.join(BUILD, `scene-${p.scene.id}.mp4`);
+  if (reuseScenes && existsSync(p.file)) continue;
   ff([...inputs, "-filter_complex_script", script, "-map", "[v]", "-t", p.length.toFixed(3), "-r", String(FPS), "-c:v", "libx264", "-preset", "fast", "-crf", "12", p.file]);
   console.log(`scene ${p.scene.id}`);
 }
@@ -220,7 +227,7 @@ graph.push(`[${video}]scale=in_range=full:out_range=tv,format=yuv420p[vout]`);
 video = "vout";
 const script = path.join(BUILD, "final.graph");
 writeFileSync(script, graph.join(";\n"));
-const final = path.join(OUT, "A-Note-demo.mp4");
+const final = path.join(OUT, `${NAME}.mp4`);
 ff([
   ...inputs,
   "-filter_complex_script", script,
@@ -232,7 +239,7 @@ ff([
   final,
 ]);
 writeFileSync(
-  path.join(OUT, "A-Note-demo.srt"),
+  path.join(OUT, `${NAME}.srt`),
   plans
     .flatMap((p) => p.captions.map((c) => ({ ...c, from: p.at + c.from, to: p.at + c.to })))
     .map((c, i) => `${i + 1}\n${srt(c.from)} --> ${srt(c.to)}\n${c.text}\n`)
